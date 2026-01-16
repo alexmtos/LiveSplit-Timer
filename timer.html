@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LiveSplit Control</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<!-- Toast Notification -->
+<div class="toast-notification" id="toast-notification">
+    <div class="toast-content">
+        <span class="toast-message" id="toast-message">Tema aplicado!</span>
+    </div>
+</div>
+
+<body>
+    <div id="ls-window">
+        <header class="header">
+            <div class="status-toggle-container" id="status-toggle-container">
+                <button class="settings-toggle" id="settings-toggle" title="Configurações">
+                    <span class="icon-gear"></span>
+                </button>
+            </div>
+            <div id="game-name" class="game-title" title="-">-</div>
+            <div class="meta-grid">
+                <span id="pb-display">PB: -</span>
+                <span id="wr-display" class="wr-display">WR: -</span>
+            </div>
+        </header>
+
+        <div class="timer-container">
+            <div id="timer-delta-live" class="timer-delta-live">-</div>
+            <div id="timer" class="timer-text">0:00<span class="timer-ms">.00</span></div>
+        </div>
+
+        <div class="prediction-container" id="prediction-container">
+            <div class="prediction-grid">
+                <div class="prediction-item">
+                    <span class="prediction-label" id="best-possible-label" data-translate="prediction_best_possible">Tempo Ideal</span>
+                    <span class="prediction-time" id="best-possible-time">-</span>
+                </div>
+                <div class="prediction-item">
+                    <span class="prediction-label" id="predicted-label" data-translate="prediction_predicted">Previsão Atual</span>
+                    <span class="prediction-time" id="predicted-time">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="graph-container" id="graph-container">
+            <div class="graph-canvas-wrapper" id="graph-wrapper" style="height:213px;">
+                <canvas id="comparison-graph"></canvas>
+                <div id="graph-resizer" class="graph-resizer" title="Ajustar altura do gráfico" role="separator"
+                    aria-orientation="horizontal">
+                    <div class="resizer-handle" aria-hidden="true"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-wrapper">
+            <div class="controls-container" id="controls-container" role="toolbar" aria-label="Timer controls">
+                <div class="controls-group left">
+                    <button class="control-btn primary large" id="btn-start-split" title="Start" aria-label="Start">
+                        <span class="icon-start"></span>
+                    </button>
+                </div>
+                <div class="controls-group center">
+                    <button class="control-btn" id="btn-pause" title="Pause" aria-label="Pause">
+                        <span class="icon-pause"></span>
+                    </button>
+                    <button class="control-btn" id="btn-skip" title="Skip" aria-label="Skip">
+                        <span class="icon-skip"></span>
+                    </button>
+                    <button class="control-btn" id="btn-undo" title="Undo" aria-label="Undo">
+                        <span class="icon-undo"></span>
+                    </button>
+                </div>
+                <div class="controls-group right">
+                    <button class="control-btn" id="btn-reset" title="Reset" aria-label="Reset">
+                        <span class="icon-reset"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="splits-container">
+            <table id="splits-table">
+                <tbody id="splits-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="settings-modal" id="settings-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <div class="language-selector" id="language-selector" title="Idioma">
+                        <span class="language-flag" id="language-flag">🇧🇷</span>
+                        <span class="language-code" id="language-code">PT-BR</span>
+                        <svg class="language-dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 10l5 5 5-5z"/>
+                        </svg>
+                    </div>
+
+                    <!-- Language Dropdown -->
+                    <div class="language-dropdown" id="language-dropdown">
+                        <div class="language-option" data-lang="pt-BR">
+                            <span class="lang-flag">🇧🇷</span>
+                            <span class="lang-name">Português (Brasil)</span>
+                        </div>
+                        <div class="language-option" data-lang="en-US">
+                            <span class="lang-flag">🇺🇸</span>
+                            <span class="lang-name">English (US)</span>
+                        </div>
+                        <div class="language-option" data-lang="fr">
+                            <span class="lang-flag">🇫🇷</span>
+                            <span class="lang-name">Français</span>
+                        </div>
+                        <div class="language-option" data-lang="de">
+                            <span class="lang-flag">🇩🇪</span>
+                            <span class="lang-name">Deutsch</span>
+                        </div>
+                        <div class="language-option" data-lang="es">
+                            <span class="lang-flag">🇪🇸</span>
+                            <span class="lang-name">Español</span>
+                        </div>
+                    </div>
+
+                    <div class="modal-title">Configurações</div>
+                </div>
+                <button class="modal-close-button" id="modal-close" title="Fechar">×</button>
+            </div>
+
+            <div class="modal-sections">
+                <div class="error-notification" id="error-notification">
+                    <div class="error-notification-title">⚠️ Problema de Conexão</div>
+                    <div class="error-notification-text">
+                        Não foi possível conectar ao LiveSplit Server. Verifique se:
+                        <ul>
+                            <li>O LiveSplit está aberto e rodando</li>
+                            <li>O LiveSplit Server está ativado (Extensions → Control → Start Server)</li>
+                            <li>A porta 15721 não está sendo usada por outro aplicativo</li>
+                            <li>O firewall não está bloqueando a conexão</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="settings-section connection-section">
+                    <div class="settings-section-header">
+                        <h3 class="settings-section-title">Conexão</h3>
+                        <div class="section-status">
+                            <div class="connection-indicator">
+                                <div class="indicator-dot" id="connection-indicator-dot"></div>
+                                <span id="connection-status-text">Desconectado</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-section-content">
+                        <div class="connection-form">
+                            <div class="connection-input-row">
+                                <div class="connection-field">
+                                    <label for="connection-domain" class="connection-label">IP do LiveSplit</label>
+                                    <input type="text" id="connection-domain" class="connection-input" value="localhost"
+                                        placeholder="localhost">
+                                </div>
+                                <div class="connection-field">
+                                    <label for="connection-port" class="connection-label">Porta</label>
+                                    <input type="number" id="connection-port" class="connection-input" value="15721"
+                                        placeholder="15721">
+                                </div>
+                                <div class="connection-field compact">
+                                    <button id="test-connection" class="compact-button">
+                                        Testar & Salvar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section theme-section">
+                    <div class="settings-section-header">
+                        <h3 class="settings-section-title">Tema</h3>
+                    </div>
+
+                    <div class="settings-section-content">
+                        <div class="theme-selector">
+                            <div class="theme-nav">
+                                <div class="theme-display" id="theme-current-display">
+                                    <div class="theme-name" id="current-theme-name">Default</div>
+                                </div>
+                                <div class="theme-nav-buttons">
+                                    <button class="theme-nav-btn prev-theme" title="Tema anterior">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+                                        </svg>
+                                    </button>
+                                    <button class="theme-nav-btn next-theme" title="Próximo tema">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Transparent Mode Option -->
+                        <div class="display-option chroma-key-option">
+                            <div class="option-info">
+                                <div class="option-title">Modo Transparente</div>
+                                <div class="option-description">Torna o fundo transparente para uso em OBS/streaming</div>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-chroma-key">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section display-section">
+                    <div class="settings-section-header">
+                        <h3 class="settings-section-title">Exibição</h3>
+                    </div>
+
+                    <div class="settings-section-content">
+                        <div class="display-options">
+                            <div class="display-option">
+                                <div class="option-info">
+                                    <div class="option-title">Mostrar controles do timer</div>
+                                    <div class="option-description">Exibe os botões de controle do timer abaixo do
+                                        gráfico</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="toggle-controls" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="display-option">
+                                <div class="option-info">
+                                    <div class="option-title">Mostrar gráfico de comparação</div>
+                                    <div class="option-description">Exibe o gráfico de diferença de tempo</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="toggle-graph" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="display-option">
+                                <div class="option-info">
+                                    <div class="option-title">Mostrar tabela de splits</div>
+                                    <div class="option-description">Exibe a lista de splits e tempos</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="toggle-table" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="display-option">
+                                <div class="option-info">
+                                    <div class="option-title">Splits sempre expandidos</div>
+                                    <div class="option-description">Mantém todos os splits visíveis sem necessidade de clicar</div>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="toggle-always-expanded">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section export-section">
+                    <div class="settings-section-header">
+                        <h3 class="settings-section-title">Exportar Dados</h3>
+                    </div>
+
+                    <div class="settings-section-content">
+                        <div class="export-info">
+                            <div class="export-info-main">
+                                <div class="export-info-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="17 8 12 3 7 8"/>
+                                        <line x1="12" y1="3" x2="12" y2="15"/>
+                                    </svg>
+                                </div>
+                                <div class="export-info-text">
+                                    <div class="export-info-title">Salve sua run</div>
+                                    <div class="export-info-description">Exporte como imagem para compartilhar ou como texto
+                                        para análise</div>
+                                </div>
+                            </div>
+                            <div class="export-buttons-container">
+                                <button class="export-button image" id="export-image" title="Exportar como imagem PNG">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <polyline points="21 15 16 10 5 21" />
+                                    </svg>
+                                    <span class="export-button-text">Imagem</span>
+                                </button>
+                                <button class="export-button text" id="export-text" title="Exportar como CSV">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                        <polyline points="14 2 14 8 20 8" />
+                                        <line x1="16" y1="13" x2="8" y2="13" />
+                                        <line x1="16" y1="17" x2="8" y2="17" />
+                                        <polyline points="10 9 9 9 8 9" />
+                                    </svg>
+                                    <span class="export-button-text">CSV</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section reset-section">
+                    <div class="settings-section-content">
+                        <div class="reset-warning">
+                            <div class="reset-warning-main">
+                                <div class="reset-warning-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                        <line x1="12" y1="8" x2="12" y2="14"/>
+                                        <line x1="12" y1="16" x2="12" y2="18"/>
+                                    </svg>
+                                </div>
+                                <div class="reset-warning-text">
+                                    <p>Todas as configurações voltarão aos valores padrão. Isso não pode ser desfeito.</p>
+                                </div>
+                            </div>
+                            <button class="reset-button" id="modal-reset">
+                                Redefinir Configurações
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="modal-footer-content">
+                    <div class="footer-left">
+                        <div class="version-badge">
+                            <span class="version">Versão 0.0.1</span>
+                        </div>
+                    </div>
+                    <div class="footer-right">
+                        <div class="credits"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
