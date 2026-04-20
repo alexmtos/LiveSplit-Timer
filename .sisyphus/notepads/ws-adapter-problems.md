@@ -1,0 +1,5 @@
+- Potential problem: In environments without a WebSocket implementation, adapter will emit errors; tests need to simulate both browser/global and node ws gracefully.
+- Compatibility: Node vs browser WebSocket APIs differ; adapter attempts normalization but edge cases may appear.
+- Mocking: Heavy reliance on mocks in tests to validate lifecycle; ensure test mocks reflect real-world usage.
+- Integration risk: If app.js retains its own WebSocket usage, two independent lifecycles could race; require a single entry point.
+- Security: Ensure messages are validated and not echoed indefinitely during reconnect storms.

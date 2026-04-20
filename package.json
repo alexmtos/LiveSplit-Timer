@@ -1,7 +1,0 @@
-{
-  "type": "module",
-  "devDependencies": {
-    "eslint": "^9.39.2",
-    "typescript": "^5.9.3"
-  }
-}

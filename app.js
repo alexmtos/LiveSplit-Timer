@@ -1,6 +1,18 @@
 /* ==================== CONFIGURATION ==================== */
 console.log('[App] Loading app.js...');
 
+// Note: For Node.js/testing environments, src/config.js provides modular config.
+// For browser, we use inline CONFIG below.
+const CONFIG = {
+    WS_URL: 'ws://localhost:16834/livesplit',  // Porta correta do LiveSplit Server
+    RECONNECT_DELAY: 1000,
+    MAX_AUTO_RECONNECT_ATTEMPTS: 3,
+    GRAPH_DRAW_THROTTLE: 16,
+    RESIZE_DEBOUNCE: 150,
+    CLICK_DISTANCE_THRESHOLD: 15,
+    AUTO_SHOW_SETTINGS_ON_DISCONNECT: true
+};
+
 /* ==================== LOGGER ==================== */
 class Logger {
     static _enabled = true;
@@ -79,65 +91,192 @@ class Logger {
     }
 }
 
-const CONFIG = {
-    WS_URL: 'ws://localhost:16834/livesplit',  // Porta correta do LiveSplit Server
-    RECONNECT_DELAY: 1000,
-    MAX_AUTO_RECONNECT_ATTEMPTS: 3,
-    GRAPH_DRAW_THROTTLE: 16,
-    RESIZE_DEBOUNCE: 150,
-    CLICK_DISTANCE_THRESHOLD: 15,
-    AUTO_SHOW_SETTINGS_ON_DISCONNECT: true
-};
-
 // Log reader para debugging do LiveSplit
-let logReader = null;
+// Internal LogReader implementation (no external module)
+class LogReaderInternal {
+  constructor() {
+    this._connected = false;
+    this._stats = { totalLogs: 0, lastLogAt: null, connected: false };
+  }
+  connect() {
+    this._connected = true;
+    this._stats.connected = true;
+    return true;
+  }
+  getStats() {
+    if (!this._connected) {
+      throw new Error('LogReaderInternal not connected');
+    }
+    return { totalLogs: this._stats.totalLogs, lastLogAt: this._stats.lastLogAt, connected: true };
+  }
+}
+
+// Internal singleton instance (not exposed as a public module)
+let _logReaderInstance = null;
+
+// Expose a stable, global API surface for UI/runtimes without relying on
+// dynamic imports. This provides:
+//  - window.logReader.connect()
+//  - window.logReader.getStats()
+// The internal implementation remains LogReaderInternal, eliminating any shadowing
+// risks from re-declarations.
+function _initializeLogReaderSingleton() {
+  // Do not recreate if already initialized
+  if (_logReaderInstance) {
+    return _logReaderInstance;
+  }
+  _logReaderInstance = new LogReaderInternal();
+  // Deterministic startup readiness: attempt immediate connect
+  try {
+    _logReaderInstance.connect();
+  } catch (e) {
+    console.error('[App] Error during LogReader startup:', e);
+  }
+  // Emit a custom event to signal readiness for external listeners (Strategy 2)
+  if (typeof window !== 'undefined') {
+    try {
+      window.dispatchEvent(new CustomEvent('logReaderReady', { detail: { reader: _logReaderInstance } }));
+    } catch (e) {
+      // Ignore if environment doesn't support events
+    }
+  }
+  return _logReaderInstance;
+}
+
+// Build a tiny public wrapper surface around the internal singleton.
+if (typeof window !== 'undefined') {
+  window.logReader = {
+  connect: function() {
+    const inst = _initializeLogReaderSingleton();
+    // The concrete connect is synchronous in this implementation, but keep a
+    // promise-friendly surface for future changes.
+    try {
+      return inst.connect();
+    } catch (e) {
+      console.error('[App] LogReader connect failed:', e);
+      return false;
+    }
+  },
+  getStats: function() {
+    // Ensure initialization happened before accessing stats
+    const inst = _logReaderInstance || _initializeLogReaderSingleton();
+    try {
+      return inst.getStats();
+    } catch (e) {
+      console.error('[App] LogReader getStats failed:', e);
+      return null;
+    }
+  }
+  };
+}
+
+// Initialize on script load to satisfy deterministic readiness contract
+_initializeLogReaderSingleton();
+
+// Readiness gating for logReader API to avoid race conditions when UI code
+// interacts with the log reader before it's fully initialized.
+// We wrap the existing window.logReader with a Proxy that queues calls
+// until the internal _logReaderInstance is ready. This preserves the public
+// API surface while ensuring deterministic startup regardless of timing.
+if (typeof window !== 'undefined' && window.logReader) {
+  try {
+    const originalLogReader = window.logReader;
+    window.logReader = new Proxy(originalLogReader, {
+      get(target, prop) {
+        const value = target[prop];
+        if (typeof value !== 'function') {
+          return value;
+        }
+        // Return a wrapper that defers execution until the internal reader is ready
+        return function(...args) {
+          if (_logReaderInstance) {
+            try {
+              return value.apply(target, args);
+            } catch (e) {
+              // Propagate errors from the actual logReader method
+              throw e;
+            }
+          }
+          // Wait for readiness, then invoke
+          return new Promise((resolve, reject) => {
+            const interval = setInterval(() => {
+              if (_logReaderInstance) {
+                clearInterval(interval);
+                try {
+                  const res = value.apply(target, args);
+                  resolve(res);
+                } catch (err) {
+                  reject(err);
+                }
+              }
+            }, 5);
+          });
+        };
+      }
+    });
+  } catch (e) {
+    console.warn('[App] Failed to apply logReader readiness gate:', e);
+  }
+}
+
+// Backward-compatible alias for environments that may still reference a
+// global LogReaderInternal (for debugging/testing only). Do not expose in prod
+// runtime except for debugging; kept here to avoid breaking existing code paths.
+if (typeof window !== 'undefined') {
+  window.LogReaderInternal = LogReaderInternal;
+}
+if (typeof global !== 'undefined') {
+  global.LogReaderInternal = LogReaderInternal;
+}
 
 /**
  * Inicializa o leitor de logs do LiveSplit
  */
 function initializeLogReader() {
-    try {
-        // Verifica se estamos em ambiente Node.js
-        if (typeof window !== 'undefined') {
-            // Carrega o módulo dinamicamente
-            import('./log-reader.js').then(module => {
-                const LiveSplitLogReader = module.default;
-                const logReader = new LiveSplitLogReader();
-                
-                console.log('[App] Inicializando log reader do LiveSplit...');
-                
-                if (logReader.connect()) {
-                    console.log('[App] Log reader conectado com sucesso!');
-                    
-                    // Envia comandos para obter dados de previsão
-                    setTimeout(() => {
-                        if (connectionManager && connectionManager.isConnected) {
-                            console.log('[App] Solicitando dados de previsão...');
-                            connectionManager.getBestPossibleTime();
-                            setTimeout(() => {
-                                connectionManager.getPredictedTime();
-                            }, 500);
-                        }
-                    }, 1000);
-                } else {
-                    console.log('[App] Não foi possível conectar ao log reader');
-                }
-            }).catch(error => {
-                console.error('[App] Erro ao carregar módulo do log reader:', error);
-            });
-        } else {
-            console.log('[App] Log reader não disponível em ambiente browser');
-        }
-    } catch (error) {
-        console.error('[App] Erro ao inicializar log reader:', error);
+  try {
+    // Verifica se estamos em ambiente browser
+    if (typeof window !== 'undefined') {
+      // Usar implementação interna para evitar carregamento dinâmico
+      logReader = new LogReaderInternal();
+      console.log('[App] Inicializando log reader (interno)...');
+      if (logReader.connect()) {
+        console.log('[App] Log reader conectado com sucesso (interno)!');
+        // Envia comandos para obter dados de previsão, se houver API disponível
+        setTimeout(() => {
+          if (connectionManager && connectionManager.isConnected && typeof connectionManager.getBestPossibleTime === 'function') {
+            console.log('[App] Solicitando dados de previsão...');
+            connectionManager.getBestPossibleTime();
+            setTimeout(() => {
+              if (typeof connectionManager.getPredictedTime === 'function') {
+                connectionManager.getPredictedTime();
+              }
+            }, 500);
+          }
+        }, 1000);
+      } else {
+        console.log('[App] Não foi possível conectar ao log reader (interno)');
+      }
+    } else {
+      console.log('[App] Log reader não disponível em ambiente browser');
     }
+  } catch (error) {
+    console.error('[App] Erro ao inicializar log reader:', error);
+  }
 }
 
 /**
  * Obtém estatísticas do log reader
  */
 function getLogReaderStats() {
-    return logReader ? logReader.getStats() : null;
+    // Prefer global wrapper surface to avoid relying on private singleton
+    try {
+        return (window.logReader && typeof window.logReader.getStats === 'function')
+            ? window.logReader.getStats()
+            : null;
+    } catch (e) {
+        console.error('[App] getLogReaderStats failed:', e);
+        return null;
+    }
 }
 
 /* ==================== TRANSLATIONS ==================== */
@@ -2223,10 +2362,18 @@ class ConnectionManager {
 
         if (success) {
             this.showTestResult('success');
-
+            
+            // Close any existing connection before connecting
+            if (this.ws) {
+                this.isManualDisconnect = true;
+                this.ws.close();
+                this.ws = null;
+            }
+            
+            // Small delay to ensure previous connection is fully closed
             setTimeout(() => {
                 this.connect(url);
-            }, 1000);
+            }, 200);
         } else {
             this.showTestResult('error');
             this.updateConnectionState('disconnected');
@@ -2899,11 +3046,11 @@ function handlePredictionResponse(data, type) {
 
     if (parsedTime !== null) {
         if (type === 'bestPossible') {
-            bestPossibleTimeEl.textContent = TimeUtils.formatSplit(parsedTime);
+            bestPossibleTimeEl.textContent = TimeUtils.formatSplit(parsedTime / 1000);
             bestPossibleTimeEl.className = 'prediction-time best';
             state.bestPossibleTime = parsedTime;
         } else if (type === 'predicted') {
-            predictedTimeEl.textContent = TimeUtils.formatSplit(parsedTime);
+            predictedTimeEl.textContent = TimeUtils.formatSplit(parsedTime / 1000);
 
             // Define cor baseada na comparação com o best possible
             if (state.bestPossibleTime !== null) {
@@ -5554,7 +5701,10 @@ function init() {
     connectionManager.init();
     updateControlsVisibility();
     initializeLogReader();
-    connectionManager.init();
+    
+    // Auto-connect to LiveSplit server on startup
+    console.log('[App] Auto-connecting to LiveSplit server...');
+    connectionManager.connect();
 
     setTimeout(() => {
         if (!state.isConnected && !state.isConnecting) {

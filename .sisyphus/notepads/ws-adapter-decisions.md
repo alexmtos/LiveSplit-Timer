@@ -1,0 +1,5 @@
+- Decision: Introduce WSAdapter to encapsulate WebSocket lifecycle (connect, reconnect, teardown) with deterministic backoff.
+- Rationale: Improves reliability, testability, and avoids unbounded retries; aligns with existing config (MAX_AUTO_RECONNECT_ATTEMPTS, RECONNECT_DELAY).
+- Pattern: Use event emitter surface for app integration; avoid new runtime dependencies; prefer polyfilled environments.
+- Trade-offs: Slight indirection added; requires wiring in app.js or a gateway module.
+- Next steps: Add wiring code to app.js and adapt tests to cover reconnection and server-down scenarios.
