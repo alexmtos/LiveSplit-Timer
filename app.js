@@ -2661,9 +2661,10 @@ function updateControlButtons() {
 
     let undoAvailable = false;
     if (state.runData?.run?.segments) {
-        undoAvailable = state.runData.run.segments.some(seg =>
-            seg.splitTime?.realTime !== undefined && seg.splitTime?.realTime !== null
-        );
+        // Permite undo se houver splits processados (splitados ou skipados)
+        // currentSplitIndex indica em qual split estamos; se > 0, há o que desfazer
+        const currentIdx = state.runData.currentSplitIndex ?? 0;
+        undoAvailable = currentIdx > 0;
     }
 
     // Atualizar botão Start/Split/Reset
