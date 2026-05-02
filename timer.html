@@ -19,11 +19,14 @@
     <div id="ls-window">
         <header class="header">
             <div class="status-toggle-container" id="status-toggle-container">
-                <button class="settings-toggle" id="settings-toggle" title="Configurações">
+                <button class="settings-toggle" id="settings-toggle" data-translate-attr="title:tooltip_settings">
                     <span class="icon-gear"></span>
                 </button>
             </div>
-            <div id="game-name" class="game-title" title="-">-</div>
+            <div class="game-info">
+                <div id="game-name" class="game-title" title="-">-</div>
+                <div id="category-name" class="category-title" title="-">-</div>
+            </div>
             <div class="meta-grid">
                 <span id="pb-display">PB: -</span>
                 <span id="wr-display" class="wr-display">WR: -</span>
@@ -38,11 +41,13 @@
         <div class="prediction-container" id="prediction-container">
             <div class="prediction-grid">
                 <div class="prediction-item">
-                    <span class="prediction-label" id="best-possible-label" data-translate="prediction_best_possible">Tempo Ideal</span>
+                    <span class="prediction-label" id="best-possible-label"
+                        data-translate="prediction_best_possible">Tempo Ideal</span>
                     <span class="prediction-time" id="best-possible-time">-</span>
                 </div>
                 <div class="prediction-item">
-                    <span class="prediction-label" id="predicted-label" data-translate="prediction_predicted">Previsão Atual</span>
+                    <span class="prediction-label" id="predicted-label" data-translate="prediction_predicted">Previsão
+                        Atual</span>
                     <span class="prediction-time" id="predicted-time">-</span>
                 </div>
             </div>
@@ -98,8 +103,9 @@
                     <div class="language-selector" id="language-selector" title="Idioma">
                         <span class="language-flag" id="language-flag">🇧🇷</span>
                         <span class="language-code" id="language-code">PT-BR</span>
-                        <svg class="language-dropdown-icon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M7 10l5 5 5-5z"/>
+                        <svg class="language-dropdown-icon" width="12" height="12" viewBox="0 0 24 24"
+                            fill="currentColor">
+                            <path d="M7 10l5 5 5-5z" />
                         </svg>
                     </div>
 
@@ -204,13 +210,16 @@
                                     </button>
                                 </div>
                             </div>
+                            <!-- Theme Selection Grid -->
+                            <div class="theme-grid" id="theme-grid"></div>
                         </div>
 
                         <!-- Transparent Mode Option -->
                         <div class="display-option chroma-key-option">
                             <div class="option-info">
                                 <div class="option-title">Modo Transparente</div>
-                                <div class="option-description">Torna o fundo transparente para uso em OBS/streaming</div>
+                                <div class="option-description">Torna o fundo transparente para uso em OBS/streaming
+                                </div>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="toggle-chroma-key">
@@ -264,7 +273,8 @@
                             <div class="display-option">
                                 <div class="option-info">
                                     <div class="option-title">Splits sempre expandidos</div>
-                                    <div class="option-description">Mantém todos os splits visíveis sem necessidade de clicar</div>
+                                    <div class="option-description">Mantém todos os splits visíveis sem necessidade de
+                                        clicar</div>
                                 </div>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="toggle-always-expanded">
@@ -284,15 +294,17 @@
                         <div class="export-info">
                             <div class="export-info-main">
                                 <div class="export-info-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                        <polyline points="17 8 12 3 7 8"/>
-                                        <line x1="12" y1="3" x2="12" y2="15"/>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                        <polyline points="17 8 12 3 7 8" />
+                                        <line x1="12" y1="3" x2="12" y2="15" />
                                     </svg>
                                 </div>
                                 <div class="export-info-text">
                                     <div class="export-info-title">Salve sua run</div>
-                                    <div class="export-info-description">Exporte como imagem para compartilhar ou como texto
+                                    <div class="export-info-description">Exporte como imagem para compartilhar ou como
+                                        texto
                                         para análise</div>
                                 </div>
                             </div>
@@ -327,14 +339,17 @@
                         <div class="reset-warning">
                             <div class="reset-warning-main">
                                 <div class="reset-warning-icon">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                                        <line x1="12" y1="8" x2="12" y2="14"/>
-                                        <line x1="12" y1="16" x2="12" y2="18"/>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2">
+                                        <path
+                                            d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                                        <line x1="12" y1="8" x2="12" y2="14" />
+                                        <line x1="12" y1="16" x2="12" y2="18" />
                                     </svg>
                                 </div>
                                 <div class="reset-warning-text">
-                                    <p>Todas as configurações voltarão aos valores padrão. Isso não pode ser desfeito.</p>
+                                    <p>Todas as configurações voltarão aos valores padrão. Isso não pode ser desfeito.
+                                    </p>
                                 </div>
                             </div>
                             <button class="reset-button" id="modal-reset">
@@ -360,6 +375,8 @@
         </div>
     </div>
 
+    <script src="src/public-config.js"></script>
+    <script src="src/translations.js"></script>
     <script src="app.js"></script>
 </body>
 

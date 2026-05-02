@@ -1,5 +1,0 @@
-- Issue: Wire WSAdapter into app.js without breaking current flows.
-- Risk: Potential for duplicate WS handling if both adapter and existing logic run concurrently.
-- Mitigation: Introduce an optional integration layer behind a feature flag or a single entry point.
-- Dependencies: None added; rely on existing WS_URL config and test mocks.
-- Blockers: If app.js directly instantiates its own WebSocket client, we must refactor to use adapter.

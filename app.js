@@ -32,7 +32,7 @@ class Logger {
      * @param {...any} args - Message args
      */
     static _format(level, prefix, ...args) {
-        if (!this._enabled) {return;}
+        if (!this._enabled) { return; }
 
         const timestamp = this._getTimestamp();
         const message = args.map(arg => {
@@ -94,21 +94,21 @@ class Logger {
 // Log reader para debugging do LiveSplit
 // Internal LogReader implementation (no external module)
 class LogReaderInternal {
-  constructor() {
-    this._connected = false;
-    this._stats = { totalLogs: 0, lastLogAt: null, connected: false };
-  }
-  connect() {
-    this._connected = true;
-    this._stats.connected = true;
-    return true;
-  }
-  getStats() {
-    if (!this._connected) {
-      throw new Error('LogReaderInternal not connected');
+    constructor() {
+        this._connected = false;
+        this._stats = { totalLogs: 0, lastLogAt: null, connected: false };
     }
-    return { totalLogs: this._stats.totalLogs, lastLogAt: this._stats.lastLogAt, connected: true };
-  }
+    connect() {
+        this._connected = true;
+        this._stats.connected = true;
+        return true;
+    }
+    getStats() {
+        if (!this._connected) {
+            throw new Error('LogReaderInternal not connected');
+        }
+        return { totalLogs: this._stats.totalLogs, lastLogAt: this._stats.lastLogAt, connected: true };
+    }
 }
 
 // Internal singleton instance (not exposed as a public module)
@@ -121,53 +121,53 @@ let _logReaderInstance = null;
 // The internal implementation remains LogReaderInternal, eliminating any shadowing
 // risks from re-declarations.
 function _initializeLogReaderSingleton() {
-  // Do not recreate if already initialized
-  if (_logReaderInstance) {
-    return _logReaderInstance;
-  }
-  _logReaderInstance = new LogReaderInternal();
-  // Deterministic startup readiness: attempt immediate connect
-  try {
-    _logReaderInstance.connect();
-  } catch (e) {
-    console.error('[App] Error during LogReader startup:', e);
-  }
-  // Emit a custom event to signal readiness for external listeners (Strategy 2)
-  if (typeof window !== 'undefined') {
-    try {
-      window.dispatchEvent(new CustomEvent('logReaderReady', { detail: { reader: _logReaderInstance } }));
-    } catch (e) {
-      // Ignore if environment doesn't support events
+    // Do not recreate if already initialized
+    if (_logReaderInstance) {
+        return _logReaderInstance;
     }
-  }
-  return _logReaderInstance;
+    _logReaderInstance = new LogReaderInternal();
+    // Deterministic startup readiness: attempt immediate connect
+    try {
+        _logReaderInstance.connect();
+    } catch (e) {
+        console.error('[App] Error during LogReader startup:', e);
+    }
+    // Emit a custom event to signal readiness for external listeners (Strategy 2)
+    if (typeof window !== 'undefined') {
+        try {
+            window.dispatchEvent(new CustomEvent('logReaderReady', { detail: { reader: _logReaderInstance } }));
+        } catch (e) {
+            // Ignore if environment doesn't support events
+        }
+    }
+    return _logReaderInstance;
 }
 
 // Build a tiny public wrapper surface around the internal singleton.
 if (typeof window !== 'undefined') {
-  window.logReader = {
-  connect: function() {
-    const inst = _initializeLogReaderSingleton();
-    // The concrete connect is synchronous in this implementation, but keep a
-    // promise-friendly surface for future changes.
-    try {
-      return inst.connect();
-    } catch (e) {
-      console.error('[App] LogReader connect failed:', e);
-      return false;
-    }
-  },
-  getStats: function() {
-    // Ensure initialization happened before accessing stats
-    const inst = _logReaderInstance || _initializeLogReaderSingleton();
-    try {
-      return inst.getStats();
-    } catch (e) {
-      console.error('[App] LogReader getStats failed:', e);
-      return null;
-    }
-  }
-  };
+    window.logReader = {
+        connect: function () {
+            const inst = _initializeLogReaderSingleton();
+            // The concrete connect is synchronous in this implementation, but keep a
+            // promise-friendly surface for future changes.
+            try {
+                return inst.connect();
+            } catch (e) {
+                console.error('[App] LogReader connect failed:', e);
+                return false;
+            }
+        },
+        getStats: function () {
+            // Ensure initialization happened before accessing stats
+            const inst = _logReaderInstance || _initializeLogReaderSingleton();
+            try {
+                return inst.getStats();
+            } catch (e) {
+                console.error('[App] LogReader getStats failed:', e);
+                return null;
+            }
+        }
+    };
 }
 
 // Initialize on script load to satisfy deterministic readiness contract
@@ -179,89 +179,89 @@ _initializeLogReaderSingleton();
 // until the internal _logReaderInstance is ready. This preserves the public
 // API surface while ensuring deterministic startup regardless of timing.
 if (typeof window !== 'undefined' && window.logReader) {
-  try {
-    const originalLogReader = window.logReader;
-    window.logReader = new Proxy(originalLogReader, {
-      get(target, prop) {
-        const value = target[prop];
-        if (typeof value !== 'function') {
-          return value;
-        }
-        // Return a wrapper that defers execution until the internal reader is ready
-        return function(...args) {
-          if (_logReaderInstance) {
-            try {
-              return value.apply(target, args);
-            } catch (e) {
-              // Propagate errors from the actual logReader method
-              throw e;
-            }
-          }
-          // Wait for readiness, then invoke
-          return new Promise((resolve, reject) => {
-            const interval = setInterval(() => {
-              if (_logReaderInstance) {
-                clearInterval(interval);
-                try {
-                  const res = value.apply(target, args);
-                  resolve(res);
-                } catch (err) {
-                  reject(err);
+    try {
+        const originalLogReader = window.logReader;
+        window.logReader = new Proxy(originalLogReader, {
+            get(target, prop) {
+                const value = target[prop];
+                if (typeof value !== 'function') {
+                    return value;
                 }
-              }
-            }, 5);
-          });
-        };
-      }
-    });
-  } catch (e) {
-    console.warn('[App] Failed to apply logReader readiness gate:', e);
-  }
+                // Return a wrapper that defers execution until the internal reader is ready
+                return function (...args) {
+                    if (_logReaderInstance) {
+                        try {
+                            return value.apply(target, args);
+                        } catch (e) {
+                            // Propagate errors from the actual logReader method
+                            throw e;
+                        }
+                    }
+                    // Wait for readiness, then invoke
+                    return new Promise((resolve, reject) => {
+                        const interval = setInterval(() => {
+                            if (_logReaderInstance) {
+                                clearInterval(interval);
+                                try {
+                                    const res = value.apply(target, args);
+                                    resolve(res);
+                                } catch (err) {
+                                    reject(err);
+                                }
+                            }
+                        }, 5);
+                    });
+                };
+            }
+        });
+    } catch (e) {
+        console.warn('[App] Failed to apply logReader readiness gate:', e);
+    }
 }
 
 // Backward-compatible alias for environments that may still reference a
 // global LogReaderInternal (for debugging/testing only). Do not expose in prod
 // runtime except for debugging; kept here to avoid breaking existing code paths.
 if (typeof window !== 'undefined') {
-  window.LogReaderInternal = LogReaderInternal;
+    window.LogReaderInternal = LogReaderInternal;
 }
 if (typeof global !== 'undefined') {
-  global.LogReaderInternal = LogReaderInternal;
+    global.LogReaderInternal = LogReaderInternal;
 }
 
 /**
  * Inicializa o leitor de logs do LiveSplit
  */
 function initializeLogReader() {
-  try {
-    // Verifica se estamos em ambiente browser
-    if (typeof window !== 'undefined') {
-      // Usar implementação interna para evitar carregamento dinâmico
-      logReader = new LogReaderInternal();
-      console.log('[App] Inicializando log reader (interno)...');
-      if (logReader.connect()) {
-        console.log('[App] Log reader conectado com sucesso (interno)!');
-        // Envia comandos para obter dados de previsão, se houver API disponível
-        setTimeout(() => {
-          if (connectionManager && connectionManager.isConnected && typeof connectionManager.getBestPossibleTime === 'function') {
-            console.log('[App] Solicitando dados de previsão...');
-            connectionManager.getBestPossibleTime();
-            setTimeout(() => {
-              if (typeof connectionManager.getPredictedTime === 'function') {
-                connectionManager.getPredictedTime();
-              }
-            }, 500);
-          }
-        }, 1000);
-      } else {
-        console.log('[App] Não foi possível conectar ao log reader (interno)');
-      }
-    } else {
-      console.log('[App] Log reader não disponível em ambiente browser');
+    try {
+        // Verifica se estamos em ambiente browser
+        if (typeof window !== 'undefined') {
+            // Usar implementação interna para evitar carregamento dinâmico
+            logReader = new LogReaderInternal();
+            console.log('[App] Inicializando log reader (interno)...');
+            if (logReader.connect()) {
+                console.log('[App] Log reader conectado com sucesso (interno)!');
+                // Envia comandos para obter dados de previsão, se houver API disponível
+                setTimeout(() => {
+                    if (connectionManager && connectionManager.isConnected && typeof connectionManager.getBestPossibleTime === 'function') {
+                        console.log('[App] Solicitando dados de previsão...');
+                        connectionManager.getBestPossibleTime();
+                        setTimeout(() => {
+                            if (typeof connectionManager.getPredictedTime === 'function') {
+                                connectionManager.getPredictedTime();
+                            }
+                        }, 500);
+                    }
+                }, 1000);
+            } else {
+                console.log('[App] Não foi possível conectar ao log reader (interno)');
+            }
+        } else {
+            console.log('[App] Log reader não disponível em ambiente browser');
+        }
+    } catch (error) {
+        console.error('[App] Erro ao inicializar log reader:', error);
     }
-  } catch (error) {
-    console.error('[App] Erro ao inicializar log reader:', error);
-  }
 }
 
 /**
@@ -288,478 +288,6 @@ const LANGUAGES = {
     'es': { name: 'Español', flag: '🇪🇸', code: 'es' }
 };
 
-const TRANSLATIONS = {
-    'pt-BR': {
-        // Settings Modal
-        'settings_title': 'Configurações',
-        'settings_close': 'Fechar',
-        // Connection
-        'connection_title': 'Conexão',
-        'connection_ip': 'IP do LiveSplit',
-        'connection_port': 'Porta',
-        'connection_test': 'Testar & Salvar',
-        'connection_status': 'Conectado',
-        'connection_disconnected': 'Desconectado',
-        'connection_connecting': 'Conectando...',
-        'connection_connected_livesplit': 'Conectado ao LiveSplit',
-        'connection_reconnecting_timer': 'Reconectando em',
-        'connection_failed': 'Falha na conexão',
-        'connection_offline': 'Sem conexão',
-        'connection_network_restored': 'Rede restaurada - reconectando...',
-        'connection_testing': 'Testando conexão...',
-        'connection_test_success': 'Teste bem-sucedido!',
-        'connection_test_failed': 'Teste falhou',
-        'connection_testing_button': 'Testando...',
-        'connection_test_success_button': '✓ Sucesso!',
-        'connection_test_failed_button': '✗ Falhou',
-        // Connection status detailed
-        'connection_connecting_to': 'Conectando a',
-        'connection_timeout': 'Conexão expirou',
-        'connection_error': 'Erro de conexão',
-        'connection_manually_disconnected': 'Desconectado manualmente',
-        'connection_ws_error': 'Erro no WebSocket',
-        'connection_url_invalid': 'URL deve começar com ws:// ou wss://',
-        'connection_test_timeout': 'Teste de conexão expirou',
-        'connection_test_successful': 'Teste de conexão bem-sucedido!',
-        'connection_enter_ip_port': 'Digite IP e porta',
-        'connection_page_closed': 'Página fechada',
-        'connection_not_connected': 'Não conectado ao LiveSplit',
-        'connection_error_sending': 'Erro ao enviar comando',
-        'connection_connection_lost': 'Conexão perdida',
-        // Theme
-        'theme_title': 'Tema',
-        'theme_transparent': 'Modo Transparente',
-        'theme_transparent_desc': 'Torna o fundo transparente para uso em OBS/streaming',
-        // Display
-        'display_title': 'Exibição',
-        'display_controls': 'Mostrar controles do timer',
-        'display_controls_desc': 'Exibe os botões de controle do timer abaixo do gráfico',
-        'display_graph': 'Mostrar gráfico de comparação',
-        'display_graph_desc': 'Exibe o gráfico de diferença de tempo',
-        'display_table': 'Mostrar tabela de splits',
-        'display_table_desc': 'Exibe a lista de splits e tempos',
-        'display_expanded': 'Splits sempre expandidos',
-        'display_expanded_desc': 'Mantém todos os splits visíveis sem necessidade de clicar',
-        // Export
-        'export_title': 'Exportar Dados',
-        'export_save': 'Salve sua run',
-        'export_desc': 'Exporte como imagem para compartilhar ou como texto para análise',
-        'export_image': 'Imagem',
-        'export_csv': 'CSV',
-        'export_image_title': 'Exportar como imagem PNG',
-        'export_csv_title': 'Exportar como CSV',
-        // Reset
-        'reset_title': 'Redefinir Configurações',
-        'reset_warning': 'Todas as configurações voltarão aos valores padrão. Isso não pode ser desfeito.',
-        'reset_button': 'Redefinir Configurações',
-        'reset_ip_port_title': 'IP e Porta',
-        'reset_ip_port_message': 'Deseja manter o IP e porta atuais ou restaurar os valores padrão?',
-        'reset_keep_current': 'Manter Atual',
-        'reset_restore_default': 'Restaurar Padrão',
-        // Timer Controls
-        'btn_start': 'Start',
-        'btn_pause': 'Pause',
-        'btn_skip': 'Skip',
-        'btn_undo': 'Undo',
-        'btn_reset': 'Reset',
-        // Other
-        'pb_display': 'PB',
-        'wr_display': 'WR',
-        'wr_loading': 'Carregando WR...',
-        'wr_not_found': 'WR não encontrado',
-        'version': 'Versão',
-        'made_with': 'Feito com 🧠 por',
-        'with_ai': ', com o apoio de IA!',
-        // Notifications
-        'notification_chroma_key_enabled': 'Modo transparente ativado',
-        'notification_chroma_key_disabled': 'Modo transparente desativado',
-        'notification_graph_enabled': 'Gráfico ativado',
-        'notification_graph_disabled': 'Gráfico desativado',
-        'notification_table_enabled': 'Tabela ativada',
-        'notification_table_disabled': 'Tabela desativada',
-        'notification_controls_enabled': 'Controles ativados',
-        'notification_controls_disabled': 'Controles desativados',
-        'notification_capture_success': 'Captura realizada!',
-        'notification_export_failed': 'Export falhou',
-        'notification_csv_success': 'CSV exportado'
-    },
-    'en-US': {
-        // Settings Modal
-        'settings_title': 'Settings',
-        'settings_close': 'Close',
-        // Connection
-        'connection_title': 'Connection',
-        'connection_ip': 'LiveSplit IP',
-        'connection_port': 'Port',
-        'connection_test': 'Test & Save',
-        'connection_status': 'Connected',
-        'connection_disconnected': 'Disconnected',
-        'connection_connecting': 'Connecting...',
-        'connection_connected_livesplit': 'Connected to LiveSplit',
-        'connection_reconnecting_timer': 'Reconnecting in',
-        'connection_failed': 'Connection failed',
-        'connection_offline': 'Network offline',
-        'connection_network_restored': 'Network restored - reconnecting...',
-        'connection_testing': 'Testing connection...',
-        'connection_test_success': 'Test successful!',
-        'connection_test_failed': 'Test failed',
-        'connection_testing_button': 'Testing...',
-        'connection_test_success_button': '✓ Success!',
-        'connection_test_failed_button': '✗ Failed',
-        // Connection status detailed
-        'connection_connecting_to': 'Connecting to',
-        'connection_timeout': 'Connection timed out',
-        'connection_error': 'Connection error',
-        'connection_manually_disconnected': 'Manually disconnected',
-        'connection_ws_error': 'WebSocket error',
-        'connection_url_invalid': 'URL must start with ws:// or wss://',
-        'connection_test_timeout': 'Connection test timed out',
-        'connection_test_successful': 'Connection test successful!',
-        'connection_enter_ip_port': 'Enter IP and port',
-        'connection_page_closed': 'Page closed',
-        'connection_not_connected': 'Not connected to LiveSplit',
-        'connection_error_sending': 'Error sending command',
-        'connection_connection_lost': 'Connection lost',
-        // Theme
-        'theme_title': 'Theme',
-        'theme_transparent': 'Transparent Mode',
-        'theme_transparent_desc': 'Makes the background transparent for OBS/streaming use',
-        // Display
-        'display_title': 'Display',
-        'display_controls': 'Show timer controls',
-        'display_controls_desc': 'Shows timer control buttons below the graph',
-        'display_graph': 'Show comparison graph',
-        'display_graph_desc': 'Shows the time difference graph',
-        'display_table': 'Show splits table',
-        'display_table_desc': 'Shows the list of splits and times',
-        'display_expanded': 'Always expanded splits',
-        'display_expanded_desc': 'Keeps all splits visible without needing to click',
-        // Export
-        'export_title': 'Export Data',
-        'export_save': 'Save your run',
-        'export_desc': 'Export as image to share or as text for analysis',
-        'export_image': 'Image',
-        'export_csv': 'CSV',
-        'export_image_title': 'Export as PNG image',
-        'export_csv_title': 'Export as CSV',
-        // Reset
-        'reset_title': 'Reset Settings',
-        'reset_warning': 'All settings will return to default values. This cannot be undone.',
-        'reset_button': 'Reset Settings',
-        'reset_ip_port_title': 'IP and Port',
-        'reset_ip_port_message': 'Do you want to keep the current IP and port or restore the defaults?',
-        'reset_keep_current': 'Keep Current',
-        'reset_restore_default': 'Restore Defaults',
-        // Timer Controls
-        'btn_start': 'Start',
-        'btn_pause': 'Pause',
-        'btn_skip': 'Skip',
-        'btn_undo': 'Undo',
-        'btn_reset': 'Reset',
-        // Other
-        'pb_display': 'PB',
-        'wr_display': 'WR',
-        'wr_loading': 'Loading WR...',
-        'wr_not_found': 'WR not found',
-        'version': 'Version',
-        'made_with': 'Made with 🧠 by',
-        'with_ai': ', with AI support!',
-        // Notifications
-        'notification_chroma_key_enabled': 'Transparent mode enabled',
-        'notification_chroma_key_disabled': 'Transparent mode disabled',
-        'notification_graph_enabled': 'Graph enabled',
-        'notification_graph_disabled': 'Graph disabled',
-        'notification_table_enabled': 'Table enabled',
-        'notification_table_disabled': 'Table disabled',
-        'notification_controls_enabled': 'Controls enabled',
-        'notification_controls_disabled': 'Controls disabled',
-        'notification_capture_success': 'Capture successful!',
-        'notification_export_failed': 'Export failed',
-        'notification_csv_success': 'CSV exported'
-    },
-    'fr': {
-        // Settings Modal
-        'settings_title': 'Paramètres',
-        'settings_close': 'Fermer',
-        // Connection
-        'connection_title': 'Connexion',
-        'connection_ip': 'IP LiveSplit',
-        'connection_port': 'Port',
-        'connection_test': 'Tester & Enregistrer',
-        'connection_status': 'Connecté',
-        'connection_disconnected': 'Déconnecté',
-        'connection_connecting': 'Connexion...',
-        'connection_connected_livesplit': 'Connecté à LiveSplit',
-        'connection_reconnecting_timer': 'Reconnexion dans',
-        'connection_failed': 'Échec de la connexion',
-        'connection_offline': 'Hors ligne',
-        'connection_network_restored': 'Réseau restauré - reconnexion...',
-        'connection_testing': 'Test de connexion...',
-        'connection_test_success': 'Test réussi!',
-        'connection_test_failed': 'Test échoué',
-        'connection_testing_button': 'Test...',
-        'connection_test_success_button': '✓ Succès!',
-        'connection_test_failed_button': '✗ Échec',
-        // Connection status detailed
-        'connection_connecting_to': 'Connexion à',
-        'connection_timeout': 'Connexion expirée',
-        'connection_error': 'Erreur de connexion',
-        'connection_manually_disconnected': 'Déconnecté manuellement',
-        'connection_ws_error': 'Erreur WebSocket',
-        'connection_url_invalid': "L'URL doit commencer par ws:// ou wss://",
-        'connection_test_timeout': 'Le test de connexion a expiré',
-        'connection_test_successful': 'Test de connexion réussi!',
-        'connection_enter_ip_port': "Entrez l'IP et le port",
-        'connection_page_closed': 'Page fermée',
-        'connection_not_connected': 'Non connecté à LiveSplit',
-        'connection_error_sending': 'Erreur lors de l\'envoi du commande',
-        'connection_connection_lost': 'Connexion perdue',
-        // Theme
-        'theme_title': 'Thème',
-        'theme_transparent': 'Mode Transparent',
-        'theme_transparent_desc': 'Rend le fond transparent pour une utilisation OBS/streaming',
-        // Display
-        'display_title': 'Affichage',
-        'display_controls': 'Afficher les commandes du minuteur',
-        'display_controls_desc': 'Affiche les boutons de contrôle du minuteur sous le graphique',
-        'display_graph': 'Afficher le graphe de comparaison',
-        'display_graph_desc': 'Affiche le graphe de différence de temps',
-        'display_table': 'Afficher le tableau des splits',
-        'display_table_desc': 'Affiche la liste des splits et des temps',
-        'display_expanded': 'Splits toujours développés',
-        'display_expanded_desc': 'Garde tous les splits visibles sans avoir besoin de cliquer',
-        // Export
-        'export_title': 'Exporter les Données',
-        'export_save': 'Sauvegardez votre run',
-        'export_desc': 'Exportez comme image pour partager ou comme texte pour analyse',
-        'export_image': 'Image',
-        'export_csv': 'CSV',
-        'export_image_title': 'Exporter comme image PNG',
-        'export_csv_title': 'Exporter comme CSV',
-        // Reset
-        'reset_title': 'Réinitialiser les Paramètres',
-        'reset_warning': 'Tous les paramètres reviendront aux valeurs par défaut. Cela ne peut pas être annulé.',
-        'reset_button': 'Réinitialiser les Paramètres',
-        'reset_ip_port_title': 'IP et Port',
-        'reset_ip_port_message': 'Voulez-vous conserver l\'IP et le port actuels ou restaurer les valeurs par défaut ?',
-        'reset_keep_current': 'Conserver',
-        'reset_restore_default': 'Restaurer',
-        // Timer Controls
-        'btn_start': 'Start',
-        'btn_pause': 'Pause',
-        'btn_skip': 'Skip',
-        'btn_undo': 'Undo',
-        'btn_reset': 'Reset',
-        // Other
-        'pb_display': 'PB',
-        'wr_display': 'WR',
-        'wr_loading': 'Chargement WR...',
-        'wr_not_found': 'WR non trouvé',
-        'version': 'Version',
-        'made_with': 'Fait avec 🧠 par',
-        'with_ai': ', avec le soutien de l\'IA!',
-        // Notifications
-        'notification_chroma_key_enabled': 'Mode transparent activé',
-        'notification_chroma_key_disabled': 'Mode transparent désactivé',
-        'notification_graph_enabled': 'Graphique activé',
-        'notification_graph_disabled': 'Graphique désactivé',
-        'notification_table_enabled': 'Tableau activé',
-        'notification_table_disabled': 'Tableau désactivé',
-        'notification_controls_enabled': 'Contrôles activés',
-        'notification_controls_disabled': 'Contrôles désactivés',
-        'notification_capture_success': 'Capture réussie!',
-        'notification_export_failed': 'Échec de l\'export',
-        'notification_csv_success': 'CSV exporté'
-    },
-    'de': {
-        // Settings Modal
-        'settings_title': 'Einstellungen',
-        'settings_close': 'Schließen',
-        // Connection
-        'connection_title': 'Verbindung',
-        'connection_ip': 'LiveSplit IP',
-        'connection_port': 'Port',
-        'connection_test': 'Testen & Speichern',
-        'connection_status': 'Verbunden',
-        'connection_disconnected': 'Getrennt',
-        'connection_connecting': 'Verbinde...',
-        'connection_connected_livesplit': 'Mit LiveSplit verbunden',
-        'connection_reconnecting_timer': 'Verbinde neu in',
-        'connection_failed': 'Verbindung fehlgeschlagen',
-        'connection_offline': 'Offline',
-        'connection_network_restored': 'Netzwerk wiederhergestellt - verbinde neu...',
-        'connection_testing': 'Verbindung wird getestet...',
-        'connection_test_success': 'Test erfolgreich!',
-        'connection_test_failed': 'Test fehlgeschlagen',
-        'connection_testing_button': 'Teste...',
-        'connection_test_success_button': '✓ Erfolg!',
-        'connection_test_failed_button': '✗ Fehler',
-        // Connection status detailed
-        'connection_connecting_to': 'Verbindung zu',
-        'connection_timeout': 'Verbindung abgelaufen',
-        'connection_error': 'Verbindungsfehler',
-        'connection_manually_disconnected': 'Manuell getrennt',
-        'connection_ws_error': 'WebSocket-Fehler',
-        'connection_url_invalid': 'URL muss mit ws:// oder wss:// beginnen',
-        'connection_test_timeout': 'Verbindungstest abgelaufen',
-        'connection_test_successful': 'Verbindungstest erfolgreich!',
-        'connection_enter_ip_port': 'IP und Port eingeben',
-        'connection_page_closed': 'Seite geschlossen',
-        'connection_not_connected': 'Nicht mit LiveSplit verbunden',
-        'connection_error_sending': 'Fehler beim Senden des Befehls',
-        'connection_connection_lost': 'Verbindung verloren',
-        // Theme
-        'theme_title': 'Design',
-        'theme_transparent': 'Transparenter Modus',
-        'theme_transparent_desc': 'Macht den Hintergrund transparent für OBS/Streaming',
-        // Display
-        'display_title': 'Anzeige',
-        'display_controls': 'Timer-Steuerungen anzeigen',
-        'display_controls_desc': 'Zeigt die Timer-Steuerungsschaltflächen unter dem Diagramm',
-        'display_graph': 'Vergleichsdiagramm anzeigen',
-        'display_graph_desc': 'Zeigt das Zeitdifferenzdiagramm',
-        'display_table': 'Splits-Tabelle anzeigen',
-        'display_table_desc': 'Zeigt die Liste der Splits und Zeiten',
-        'display_expanded': 'Splits immer erweitert',
-        'display_expanded_desc': 'Alle Splits sichtbar ohne klicken zu müssen',
-        // Export
-        'export_title': 'Daten exportieren',
-        'export_save': 'Speichere deinen Run',
-        'export_desc': 'Exportiere als Bild zum Teilen oder als Text zur Analyse',
-        'export_image': 'Bild',
-        'export_csv': 'CSV',
-        'export_image_title': 'Als PNG-Bild exportieren',
-        'export_csv_title': 'Als CSV exportieren',
-        // Reset
-        'reset_title': 'Einstellungen zurücksetzen',
-        'reset_warning': 'Alle Einstellungen werden auf die Standardwerte zurückgesetzt. Dies kann nicht rückgängig gemacht werden.',
-        'reset_button': 'Einstellungen zurücksetzen',
-        'reset_ip_port_title': 'IP und Port',
-        'reset_ip_port_message': 'Möchten Sie die aktuelle IP und den Port beibehalten oder die Standardwerte wiederherstellen?',
-        'reset_keep_current': 'Beibehalten',
-        'reset_restore_default': 'Wiederherstellen',
-        // Timer Controls
-        'btn_start': 'Start',
-        'btn_pause': 'Pause',
-        'btn_skip': 'Skip',
-        'btn_undo': 'Undo',
-        'btn_reset': 'Reset',
-        // Other
-        'pb_display': 'PB',
-        'wr_display': 'WR',
-        'wr_loading': 'Lade WR...',
-        'wr_not_found': 'WR nicht gefunden',
-        'version': 'Version',
-        'made_with': 'Gemacht mit 🧠 von',
-        'with_ai': ', mit KI-Unterstützung!',
-        // Notifications
-        'notification_chroma_key_enabled': 'Transparenter Modus aktiviert',
-        'notification_chroma_key_disabled': 'Transparenter Modus deaktiviert',
-        'notification_graph_enabled': 'Diagramm aktiviert',
-        'notification_graph_disabled': 'Diagramm deaktiviert',
-        'notification_table_enabled': 'Tabelle aktiviert',
-        'notification_table_disabled': 'Tabelle deaktiviert',
-        'notification_controls_enabled': 'Steuerungen aktiviert',
-        'notification_controls_disabled': 'Steuerungen deaktiviert',
-        'notification_capture_success': 'Aufnahme erfolgreich!',
-        'notification_export_failed': 'Export fehlgeschlagen',
-        'notification_csv_success': 'CSV exportiert'
-    },
-    'es': {
-        // Settings Modal
-        'settings_title': 'Configuración',
-        'settings_close': 'Cerrar',
-        // Connection
-        'connection_title': 'Conexión',
-        'connection_ip': 'IP de LiveSplit',
-        'connection_port': 'Puerto',
-        'connection_test': 'Probar & Guardar',
-        'connection_status': 'Conectado',
-        'connection_disconnected': 'Desconectado',
-        'connection_connecting': 'Conectando...',
-        'connection_connected_livesplit': 'Conectado a LiveSplit',
-        'connection_reconnecting_timer': 'Reconectando en',
-        'connection_failed': 'Conexión fallida',
-        'connection_offline': 'Sin conexión',
-        'connection_network_restored': 'Red restaurada - reconectando...',
-        'connection_testing': 'Probando conexión...',
-        'connection_test_success': '¡Prueba exitosa!',
-        'connection_test_failed': 'Prueba fallida',
-        'connection_testing_button': 'Probando...',
-        'connection_test_success_button': '✓ ¡Éxito!',
-        'connection_test_failed_button': '✗ Falló',
-        // Connection status detailed
-        'connection_connecting_to': 'Conectando a',
-        'connection_timeout': 'Conexión expiró',
-        'connection_error': 'Error de conexión',
-        'connection_manually_disconnected': 'Desconectado manualmente',
-        'connection_ws_error': 'Error de WebSocket',
-        'connection_url_invalid': 'La URL debe comenzar con ws:// o wss://',
-        'connection_test_timeout': 'Prueba de conexión expiró',
-        'connection_test_successful': '¡Prueba de conexión exitosa!',
-        'connection_enter_ip_port': 'Ingrese IP y puerto',
-        'connection_page_closed': 'Página cerrada',
-        'connection_not_connected': 'No conectado a LiveSplit',
-        'connection_error_sending': 'Error al enviar comando',
-        'connection_connection_lost': 'Conexión perdida',
-        // Theme
-        'theme_title': 'Tema',
-        'theme_transparent': 'Modo Transparente',
-        'theme_transparent_desc': 'Hace el fondo transparente para uso en OBS/streaming',
-        // Display
-        'display_title': 'Visualización',
-        'display_controls': 'Mostrar controles del temporizador',
-        'display_controls_desc': 'Muestra los botones de control del temporizador debajo del gráfico',
-        'display_graph': 'Mostrar gráfico de comparación',
-        'display_graph_desc': 'Muestra el gráfico de diferencia de tiempo',
-        'display_table': 'Mostrar tabla de splits',
-        'display_table_desc': 'Muestra la lista de splits y tiempos',
-        'display_expanded': 'Splits siempre expandidos',
-        'display_expanded_desc': 'Mantiene todos los splits visibles sin necesidad de hacer clic',
-        // Export
-        'export_title': 'Exportar Datos',
-        'export_save': 'Guarda tu run',
-        'export_desc': 'Exporta como imagen para compartir o como texto para análisis',
-        'export_image': 'Imagen',
-        'export_csv': 'CSV',
-        'export_image_title': 'Exportar como imagen PNG',
-        'export_csv_title': 'Exportar como CSV',
-        // Reset
-        'reset_title': 'Restablecer Configuración',
-        'reset_warning': 'Todas las configuraciones volverán a los valores predeterminados. Esto no se puede deshacer.',
-        'reset_button': 'Restablecer Configuración',
-        'reset_ip_port_title': 'IP y Puerto',
-        'reset_ip_port_message': '¿Deseas mantener la IP y puerto actuales o restaurar los valores predeterminados?',
-        'reset_keep_current': 'Mantener',
-        'reset_restore_default': 'Restaurar',
-        // Timer Controls
-        'btn_start': 'Start',
-        'btn_pause': 'Pause',
-        'btn_skip': 'Skip',
-        'btn_undo': 'Undo',
-        'btn_reset': 'Reset',
-        // Other
-        'pb_display': 'PB',
-        'wr_display': 'WR',
-        'wr_loading': 'Cargando WR...',
-        'wr_not_found': 'WR no encontrado',
-        'version': 'Versión',
-        'made_with': 'Hecho con 🧠 por',
-        'with_ai': ', ¡con apoyo de IA!',
-        // Notifications
-        'notification_chroma_key_enabled': 'Modo transparente activado',
-        'notification_chroma_key_disabled': 'Modo transparente desactivado',
-        'notification_graph_enabled': 'Gráfico activado',
-        'notification_graph_disabled': 'Gráfico desactivado',
-        'notification_table_enabled': 'Tabla activada',
-        'notification_table_disabled': 'Tabla desactivada',
-        'notification_controls_enabled': 'Controles activados',
-        'notification_controls_disabled': 'Controles desactivados',
-        'notification_capture_success': '¡Captura exitosa!',
-        'notification_export_failed': 'Exportación fallida',
-        'notification_csv_success': 'CSV exportado'
-    }
-};
 
 let currentLanguage = 'pt-BR';
 let isBrowsingThemes = false;
@@ -837,12 +365,14 @@ function initLanguage() {
  */
 function translate(key) {
     const lang = state.settings.language || currentLanguage;
-    const translations = TRANSLATIONS[lang];
-    if (translations && translations[key]) {
+    const translations = (window.TRANSLATIONS && window.TRANSLATIONS[lang]) ? window.TRANSLATIONS[lang] : (TRANSLATIONS[lang] || {});
+
+    if (translations[key]) {
         return translations[key];
     }
-    // Fallback to Portuguese if translation not found
-    const fallback = TRANSLATIONS['pt-BR'];
+
+    // Fallback to Portuguese
+    const fallback = (window.TRANSLATIONS && window.TRANSLATIONS['pt-BR']) ? window.TRANSLATIONS['pt-BR'] : (TRANSLATIONS['pt-BR'] || {});
     return fallback[key] || key;
 }
 
@@ -902,8 +432,8 @@ function applyTranslations() {
     if (transparentOption) {
         const optionTitle = transparentOption.querySelector('.option-title');
         const optionDesc = transparentOption.querySelector('.option-description');
-        if (optionTitle) {optionTitle.textContent = translate('theme_transparent');}
-        if (optionDesc) {optionDesc.textContent = translate('theme_transparent_desc');}
+        if (optionTitle) { optionTitle.textContent = translate('theme_transparent'); }
+        if (optionDesc) { optionDesc.textContent = translate('theme_transparent_desc'); }
     }
 
     // Display section
@@ -915,20 +445,36 @@ function applyTranslations() {
     const displayOptions = document.querySelectorAll('.display-section .display-option');
     if (displayOptions.length >= 4) {
         const titles = displayOptions[0].querySelectorAll('.option-title, .option-description');
-        if (titles[0]) {titles[0].textContent = translate('display_controls');}
-        if (titles[1]) {titles[1].textContent = translate('display_controls_desc');}
+        if (titles[0]) { titles[0].textContent = translate('display_controls'); }
+        if (titles[1]) { titles[1].textContent = translate('display_controls_desc'); }
 
         const graphTitles = displayOptions[1].querySelectorAll('.option-title, .option-description');
-        if (graphTitles[0]) {graphTitles[0].textContent = translate('display_graph');}
-        if (graphTitles[1]) {graphTitles[1].textContent = translate('display_graph_desc');}
+        if (graphTitles[0]) { graphTitles[0].textContent = translate('display_graph'); }
+        if (graphTitles[1]) { graphTitles[1].textContent = translate('display_graph_desc'); }
 
         const tableTitles = displayOptions[2].querySelectorAll('.option-title, .option-description');
-        if (tableTitles[0]) {tableTitles[0].textContent = translate('display_table');}
-        if (tableTitles[1]) {tableTitles[1].textContent = translate('display_table_desc');}
+        if (tableTitles[0]) { tableTitles[0].textContent = translate('display_table'); }
+        if (tableTitles[1]) { tableTitles[1].textContent = translate('display_table_desc'); }
 
         const expandedTitles = displayOptions[3].querySelectorAll('.option-title, .option-description');
-        if (expandedTitles[0]) {expandedTitles[0].textContent = translate('display_expanded');}
-        if (expandedTitles[1]) {expandedTitles[1].textContent = translate('display_expanded_desc');}
+        if (expandedTitles[0]) { expandedTitles[0].textContent = translate('display_expanded'); }
+        if (expandedTitles[1]) { expandedTitles[1].textContent = translate('display_expanded_desc'); }
+    }
+
+    // Error notification
+    const errorNotificationTitle = document.querySelector('.error-notification-title');
+    if (errorNotificationTitle) {
+        errorNotificationTitle.textContent = translate('error_notification_title');
+    }
+
+    const errorNotificationText = document.querySelector('.error-notification-text');
+    if (errorNotificationText) {
+        const intro = translate('error_notification_text');
+        const li1 = translate('error_notification_1');
+        const li2 = translate('error_notification_2');
+        const li3 = translate('error_notification_3');
+        const li4 = translate('error_notification_4');
+        errorNotificationText.innerHTML = `${intro}<ul><li>${li1}</li><li>${li2}</li><li>${li3}</li><li>${li4}</li></ul>`;
     }
 
     // Export section
@@ -973,7 +519,7 @@ function applyTranslations() {
 
     const resetWarning = document.querySelector('.reset-warning p');
     if (resetWarning) {
-        resetWarning.textContent = translate('reset_warning');
+        resetWarning.textContent = translate('reset_warning_text');
     }
 
     const resetButton = document.getElementById('modal-reset');
@@ -984,29 +530,30 @@ function applyTranslations() {
     // Version and credits
     const versionText = document.querySelector('.version');
     if (versionText) {
-        versionText.innerHTML = `${translate('version')} 0.0.1`;
+        const version = (window.APP_CONFIG && window.APP_CONFIG.VERSION) || '0.0.1';
+        versionText.textContent = `${translate('version_label')} ${version}`;
     }
 
     const credits = document.querySelector('.credits');
     if (credits) {
-        credits.innerHTML = `<span>${translate('made_with')}</span> <strong>Movisterium</strong> <span>${translate('with_ai')}</span>`;
+        credits.innerHTML = translate('made_with_full');
     }
 
     // Timer controls
     const startBtn = document.getElementById('btn-start-split');
-    if (startBtn) {startBtn.setAttribute('aria-label', translate('btn_start'));}
+    if (startBtn) { startBtn.setAttribute('aria-label', translate('btn_start')); }
 
     const pauseBtn = document.getElementById('btn-pause');
-    if (pauseBtn) {pauseBtn.setAttribute('aria-label', translate('btn_pause'));}
+    if (pauseBtn) { pauseBtn.setAttribute('aria-label', translate('btn_pause')); }
 
     const skipBtn = document.getElementById('btn-skip');
-    if (skipBtn) {skipBtn.setAttribute('aria-label', translate('btn_skip'));}
+    if (skipBtn) { skipBtn.setAttribute('aria-label', translate('btn_skip')); }
 
     const undoBtn = document.getElementById('btn-undo');
-    if (undoBtn) {undoBtn.setAttribute('aria-label', translate('btn_undo'));}
+    if (undoBtn) { undoBtn.setAttribute('aria-label', translate('btn_undo')); }
 
     const resetBtn = document.getElementById('btn-reset');
-    if (resetBtn) {resetBtn.setAttribute('aria-label', translate('btn_reset'));}
+    if (resetBtn) { resetBtn.setAttribute('aria-label', translate('btn_reset')); }
 
     // PB display
     const pbDisplay = document.getElementById('pb-display');
@@ -1104,14 +651,14 @@ class DOM {
     static get(id) {
         if (!domCache[id]) {
             const el = document.getElementById(id);
-            if (!el) {Logger.warn('DOM', `Element not found: ${id}`);}
+            if (!el) { Logger.warn('DOM', `Element not found: ${id}`); }
             domCache[id] = el;
         }
         return domCache[id];
     }
 
     static extractSectionName(name) {
-        if (!name || typeof name !== 'string') {return null;}
+        if (!name || typeof name !== 'string') { return null; }
         const match = name.match(SECTION_REGEX);
         return match ? match[1] : null;
     }
@@ -1253,7 +800,7 @@ function hideModalWithToast(message) {
 
 class TimeUtils {
     static formatSplit(ms) {
-        if (ms === null || ms === undefined) {return '-';}
+        if (ms === null || ms === undefined) { return '-'; }
         const a = Math.abs(ms);
 
         const days = Math.floor(a / 86400000);
@@ -1305,11 +852,11 @@ class TimeUtils {
      * @returns {number|null} - Tempo em milissegundos
      */
     static parseLiveSplitTime(timeString) {
-        if (!timeString || timeString === '-') {return null;}
+        if (!timeString || timeString === '-') { return null; }
 
         // Formato esperado: "1:23.45" ou "1d2:34:56.78"
         const timeParts = timeString.split('.');
-        if (timeParts.length !== 2) {return null;}
+        if (timeParts.length !== 2) { return null; }
 
         const mainPart = timeParts[0];
         const csPart = timeParts[1];
@@ -1328,14 +875,14 @@ class TimeUtils {
         } else if (mainTimeParts.length === 3) {
             // Horas:minutos:segundos
             totalMs = parseFloat(mainTimeParts[0]) * 3600000 +
-                      parseFloat(mainTimeParts[1]) * 60000 +
-                      parseFloat(mainTimeParts[2]) * 1000;
+                parseFloat(mainTimeParts[1]) * 60000 +
+                parseFloat(mainTimeParts[2]) * 1000;
         } else if (mainTimeParts.length === 4) {
             // Dias:horas:minutos:segundos
             totalMs = parseFloat(mainTimeParts[0]) * 86400000 +
-                      parseFloat(mainTimeParts[1]) * 3600000 +
-                      parseFloat(mainTimeParts[2]) * 60000 +
-                      parseFloat(mainTimeParts[3]) * 1000;
+                parseFloat(mainTimeParts[1]) * 3600000 +
+                parseFloat(mainTimeParts[2]) * 60000 +
+                parseFloat(mainTimeParts[3]) * 1000;
         }
 
         // Adiciona centissegundos
@@ -1348,7 +895,7 @@ class TimeUtils {
     }
 
     static formatDelta(ms) {
-        if (ms === undefined || ms === null) {return '-';}
+        if (ms === undefined || ms === null) { return '-'; }
 
         const a = Math.abs(ms);
         const sign = ms >= 0 ? '+' : '-';
@@ -1375,11 +922,11 @@ class TimeUtils {
      * @returns {number|null} - Tempo em milissegundos
      */
     static parseLiveSplitTime(timeString) {
-        if (!timeString || timeString === '-') {return null;}
+        if (!timeString || timeString === '-') { return null; }
 
         // Formato esperado: "1:23.45" ou "1d2:34:56.78"
         const timeParts = timeString.split('.');
-        if (timeParts.length !== 2) {return null;}
+        if (timeParts.length !== 2) { return null; }
 
         const mainPart = timeParts[0];
         const csPart = timeParts[1];
@@ -1398,14 +945,14 @@ class TimeUtils {
         } else if (mainTimeParts.length === 3) {
             // Horas:minutos:segundos
             totalMs = parseFloat(mainTimeParts[0]) * 3600000 +
-                      parseFloat(mainTimeParts[1]) * 60000 +
-                      parseFloat(mainTimeParts[2]) * 1000;
+                parseFloat(mainTimeParts[1]) * 60000 +
+                parseFloat(mainTimeParts[2]) * 1000;
         } else if (mainTimeParts.length === 4) {
             // Dias:horas:minutos:segundos
             totalMs = parseFloat(mainTimeParts[0]) * 86400000 +
-                      parseFloat(mainTimeParts[1]) * 3600000 +
-                      parseFloat(mainTimeParts[2]) * 60000 +
-                      parseFloat(mainTimeParts[3]) * 1000;
+                parseFloat(mainTimeParts[1]) * 3600000 +
+                parseFloat(mainTimeParts[2]) * 60000 +
+                parseFloat(mainTimeParts[3]) * 1000;
         }
 
         // Adiciona centissegundos
@@ -1425,7 +972,7 @@ class TimeUtils {
      * @returns {number|null} - Tempo previsto em milissegundos
      */
     static calculatePredictedTime(runData, currentTime, currentSplitIndex) {
-        if (!runData?.run?.segments) {return null;}
+        if (!runData?.run?.segments) { return null; }
 
         const segments = runData.run.segments;
         let predictedTime = currentTime || 0;
@@ -1454,7 +1001,7 @@ class TimeUtils {
      * @returns {number|null} - Tempo previsto baseado na performance em milissegundos
      */
     static calculatePerformancePredictedTime(runData, currentTime, currentDelta, currentSplitIndex) {
-        if (!runData?.run?.segments) {return null;}
+        if (!runData?.run?.segments) { return null; }
 
         const segments = runData.run.segments;
         let predictedTime = currentTime || 0;
@@ -1768,15 +1315,33 @@ function updateWorldRecordDisplay() {
     if (state.worldRecordTime && state.worldRecordTime.error) {
         wrDisplay.textContent = `${translate('wr_display')}: -`;
         wrDisplay.title = translate('wr_not_found');
+        wrDisplay.style.cursor = 'default';
+        wrDisplay.onclick = null;
     } else if (state.worldRecordTime) {
         const wr = state.worldRecordTime;
         const formattedTime = wr.formattedTime || TimeUtils.formatSplit(wr.timeMs);
-        const playerName = wr.player ? ` by ${wr.player}` : '';
-        wrDisplay.textContent = `${translate('wr_display')}: ${formattedTime}${playerName}`;
-        wrDisplay.title = `${translate('wr_display')} by ${wr.player || 'Unknown'}${wr.url ? '\n' + wr.url : ''}`;
+        const player = wr.player || 'Unknown';
+
+        // Ex: WR: 1:23:45 by Player
+        wrDisplay.textContent = `${translate('wr_display')}: ${formattedTime} ${translate('wr_by') || 'by'} ${player}`;
+
+        // Tooltip with link info
+        const tooltip = translate('tooltip_wr').replace('{0}', formattedTime).replace('{1}', player);
+        const clickHint = translate('tooltip_wr_click');
+        wrDisplay.title = `${tooltip}${wr.url ? '\n' + clickHint : ''}`;
+
+        if (wr.url) {
+            wrDisplay.style.cursor = 'pointer';
+            wrDisplay.onclick = () => window.open(wr.url, '_blank');
+        } else {
+            wrDisplay.style.cursor = 'default';
+            wrDisplay.onclick = null;
+        }
     } else {
         wrDisplay.textContent = `${translate('wr_display')}: -`;
         wrDisplay.title = '';
+        wrDisplay.style.cursor = 'default';
+        wrDisplay.onclick = null;
     }
 }
 
@@ -2307,7 +1872,7 @@ class ConnectionManager {
     updateTestButton(result) {
         /** @type {HTMLButtonElement|null} */
         const testButton = document.getElementById('test-connection');
-        if (!testButton) {return;}
+        if (!testButton) { return; }
 
         testButton.classList.remove('testing', 'success', 'error');
 
@@ -2362,14 +1927,14 @@ class ConnectionManager {
 
         if (success) {
             this.showTestResult('success');
-            
+
             // Close any existing connection before connecting
             if (this.ws) {
                 this.isManualDisconnect = true;
                 this.ws.close();
                 this.ws = null;
             }
-            
+
             // Small delay to ensure previous connection is fully closed
             setTimeout(() => {
                 this.connect(url);
@@ -2649,7 +2214,7 @@ function updateControlButtons() {
 
     if (!state.isConnected) {
         [btnStartSplit, btnPause, btnReset, btnUndo, btnSkip].forEach(btn => {
-            if (btn) {btn.disabled = true;}
+            if (btn) { btn.disabled = true; }
         });
         return;
     }
@@ -2752,7 +2317,7 @@ function setupControls() {
             const isEnded = state.timerState === 'Ended';
 
             const runJustEnded = isEnded && state.runEndedAt && (Date.now() - state.runEndedAt) < 1000;
-            if (runJustEnded) {return;}
+            if (runJustEnded) { return; }
 
             if (isEnded) {
                 connectionManager.sendCommand('reset');
@@ -2792,7 +2357,7 @@ function setupControls() {
         });
     }
 
-    if (btnSkip) {btnSkip.addEventListener('click', () => connectionManager.sendCommand('skipsplit'));}
+    if (btnSkip) { btnSkip.addEventListener('click', () => connectionManager.sendCommand('skipsplit')); }
 
     updateControlButtons();
     setupGraphResizer();
@@ -2847,7 +2412,7 @@ function updateThemeDisplay(themeName = 'default') {
     if (currentDisplay) {
         const nameElement = currentDisplay.querySelector('.theme-name');
         if (nameElement) {
-            const displayName = THEMES[themeName]?.name || 'Default';
+            const displayName = translate('theme_' + themeName);
             nameElement.textContent = displayName;
         }
         const colors = THEME_COLORS[themeName] || THEME_COLORS.default;
@@ -2863,17 +2428,19 @@ function updateThemeDisplay(themeName = 'default') {
     const nextBtn = document.querySelector('.next-theme');
 
     // Theme navigation is cyclic - buttons are always enabled
-    if (prevBtn) {prevBtn.disabled = false;}
-    if (nextBtn) {nextBtn.disabled = false;}
+    if (prevBtn) { prevBtn.disabled = false; }
+    if (nextBtn) { nextBtn.disabled = false; }
 }
 
 function setupThemeSelector() {
+    const themeSelector = document.querySelector('.theme-selector');
     const themeDisplay = DOM.get('theme-current-display');
+    const themeGrid = DOM.get('theme-grid');
     const prevBtn = document.querySelector('.prev-theme');
     const nextBtn = document.querySelector('.next-theme');
 
-    if (!themeDisplay) {
-        console.warn('Theme display element not found');
+    if (!themeSelector || !themeDisplay || !themeGrid) {
+        console.warn('Theme selector elements not found');
         return;
     }
 
@@ -2905,6 +2472,11 @@ function setupThemeSelector() {
         applyTheme(themeName);
         updateThemeDisplay(themeName);
 
+        // Update active class in grid
+        document.querySelectorAll('.theme-block').forEach(block => {
+            block.classList.toggle('active', block.dataset.themeId === themeName);
+        });
+
         // Wait 2 seconds, then close modal and show toast
         settingsModalTimeout = setTimeout(() => {
             hideSettingsModal();
@@ -2921,11 +2493,45 @@ function setupThemeSelector() {
         }, 2000);
     }
 
+    // Build the grid
+    themeGrid.innerHTML = '';
+    themeNames.forEach(themeId => {
+        const theme = THEMES[themeId];
+        const colors = THEME_COLORS[themeId] || THEME_COLORS.default;
+        const block = document.createElement('div');
+        block.className = 'theme-block';
+        if ((state.settings.theme || 'default') === themeId) block.classList.add('active');
+        block.dataset.themeId = themeId;
+
+        // Use diagonal gradient for the block background
+        block.style.background = `linear-gradient(135deg, ${colors.bg} 0%, ${colors.bg} 50%, ${colors.accent} 50%, ${colors.accent} 100%)`;
+
+        block.innerHTML = `
+            <div class="theme-block-name">${translate('theme_' + themeId)}</div>
+        `;
+
+        block.addEventListener('click', (e) => {
+            e.stopPropagation();
+            applyNewTheme(themeId);
+        });
+
+        themeGrid.appendChild(block);
+    });
+
+    // Toggle grid - make entire theme-nav container clickable
+    const themeNav = document.querySelector('.theme-nav');
+    if (themeNav) {
+        themeNav.addEventListener('click', (e) => {
+            // Don't toggle if clicking on navigation buttons
+            if (e.target.closest('.theme-nav-btn')) return;
+            themeSelector.classList.toggle('expanded');
+        });
+    }
+
     if (prevBtn) {
         prevBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             const currentIndex = getCurrentThemeIndex();
-            // Cyclic: go to last theme if at first
             const newIndex = (currentIndex - 1 + themeNames.length) % themeNames.length;
             applyNewTheme(themeNames[newIndex]);
         });
@@ -2935,7 +2541,6 @@ function setupThemeSelector() {
         nextBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             const currentIndex = getCurrentThemeIndex();
-            // Cyclic: go to first theme if at last
             const newIndex = (currentIndex + 1) % themeNames.length;
             applyNewTheme(themeNames[newIndex]);
         });
@@ -2963,23 +2568,23 @@ function _resetThemeSelector() {
 
 /* ==================== FUNÇÕES DE RENDERIZAÇÃO ==================== */
 function shouldHideGraphAndTable() {
-    if (!state.runData?.run?.segments) {return true;}
+    if (!state.runData?.run?.segments) { return true; }
     return state.runData.run.segments.length <= 1;
 }
 
 function findSegmentSection(segments, startIdx) {
-    if (startIdx < 0 || startIdx >= segments.length) {return '';}
+    if (startIdx < 0 || startIdx >= segments.length) { return ''; }
 
     for (let j = startIdx; j < segments.length; j++) {
         const sec = DOM.extractSectionName(segments[j].name);
-        if (sec) {return sec;}
+        if (sec) { return sec; }
     }
     return '';
 }
 
 function updateSectionVisibility(sectionName) {
     const splitsBody = DOM.get('splits-body');
-    if (!splitsBody || !sectionName) {return;}
+    if (!splitsBody || !sectionName) { return; }
 
     // When alwaysExpandedSplits is enabled, never hide any section
     if (state.settings.alwaysExpandedSplits === true) {
@@ -3013,7 +2618,7 @@ function updatePredictionDisplay() {
     const bestPossibleTimeEl = DOM.get('best-possible-time');
     const predictedTimeEl = DOM.get('predicted-time');
 
-    if (!bestPossibleTimeEl || !predictedTimeEl) {return;}
+    if (!bestPossibleTimeEl || !predictedTimeEl) { return; }
 
     // Se não há dados da run, mostrar valores padrão
     if (!state.runData?.run?.segments) {
@@ -3032,7 +2637,7 @@ function handlePredictionResponse(data, type) {
     const bestPossibleTimeEl = DOM.get('best-possible-time');
     const predictedTimeEl = DOM.get('predicted-time');
 
-    if (!bestPossibleTimeEl || !predictedTimeEl) {return;}
+    if (!bestPossibleTimeEl || !predictedTimeEl) { return; }
 
     let parsedTime = null;
 
@@ -3083,7 +2688,7 @@ function scrollToActiveSplit() {
     /** @type {HTMLElement|null} */
     const activeRow = document.querySelector('.row-subsplit.active');
 
-    if (!splitsContainer || !activeRow) {return;}
+    if (!splitsContainer || !activeRow) { return; }
 
     const containerRect = splitsContainer.getBoundingClientRect();
     const rowRect = activeRow.getBoundingClientRect();
@@ -3095,12 +2700,12 @@ function scrollToActiveSplit() {
 }
 
 function scrollToSelectedSplit() {
-    if (state.selectedSplitIdx === null) {return;}
+    if (state.selectedSplitIdx === null) { return; }
 
     const splitsContainer = document.querySelector('.splits-container');
     const selectedRow = document.querySelector(`.row-subsplit[data-split-index="${state.selectedSplitIdx}"]`);
 
-    if (!splitsContainer || !selectedRow) {return;}
+    if (!splitsContainer || !selectedRow) { return; }
 
     const containerRect = splitsContainer.getBoundingClientRect();
     const rowRect = selectedRow.getBoundingClientRect();
@@ -3192,11 +2797,19 @@ function render(data) {
     }
 
     const gameNameEl = DOM.get('game-name');
+    const categoryNameEl = DOM.get('category-name');
+    const currentTheme = state.settings.theme || 'default';
+    const accentColor = THEME_COLORS[currentTheme]?.accent || '#00a2ff';
+
     if (gameNameEl) {
         gameNameEl.textContent = run.gameName || '-';
         gameNameEl.title = run.gameName || '-';
-        const currentTheme = state.settings.theme || 'default';
-        gameNameEl.style.color = THEME_COLORS[currentTheme]?.accent || '#00a2ff';
+        gameNameEl.style.color = accentColor;
+    }
+
+    if (categoryNameEl) {
+        categoryNameEl.textContent = run.categoryName || '-';
+        categoryNameEl.title = run.categoryName || '-';
     }
 
     const pbDisplay = DOM.get('pb-display');
@@ -3354,7 +2967,7 @@ function render(data) {
     });
 
     const splitsBody = DOM.get('splits-body');
-    if (!splitsBody) {return;}
+    if (!splitsBody) { return; }
     splitsBody.innerHTML = html;
 
     // Apply active-split to the section name if there's a selected split
@@ -3374,7 +2987,7 @@ function render(data) {
     splitsBody.querySelectorAll('.row-section').forEach(row => {
         row.addEventListener('click', function () {
             const sectionName = this.getAttribute('data-section-name');
-            if (!sectionName) {return;}
+            if (!sectionName) { return; }
 
             // Don't toggle when alwaysExpanded is enabled
             if (state.settings.alwaysExpandedSplits) {
@@ -3405,22 +3018,22 @@ function render(data) {
 
     splitsBody.querySelectorAll('.row-section').forEach(sec => {
         const secName = sec.getAttribute('data-section-name');
-        if (secName) {updateSectionVisibility(secName);}
+        if (secName) { updateSectionVisibility(secName); }
     });
 
     splitsBody.querySelectorAll('.row-subsplit').forEach(row => {
         row.addEventListener('click', function (e) {
             e.stopPropagation();
 
-            if (e.target.closest('button') || e.target.tagName === 'BUTTON') {return;}
+            if (e.target.closest('button') || e.target.tagName === 'BUTTON') { return; }
 
             const splitIndex = parseInt(this.getAttribute('data-split-index'));
             const canClick = this.getAttribute('data-can-click') === 'true';
 
-            if (!canClick) {return;}
+            if (!canClick) { return; }
 
             const splitsBody = DOM.get('splits-body');
-            if (!splitsBody) {return;}
+            if (!splitsBody) { return; }
 
             const isCurrentlySelected = state.selectedSplitIdx === splitIndex;
 
@@ -3438,7 +3051,7 @@ function render(data) {
                     scrollToActiveSplit();
                 }, 50);
 
-                if (state.settings.showGraph) {drawComparisonGraph();}
+                if (state.settings.showGraph) { drawComparisonGraph(); }
                 return;
             }
 
@@ -3455,7 +3068,7 @@ function render(data) {
             // Apply active-split to the section name, not to the subsplit
             const sectionName = this.getAttribute('data-section');
             const sectionCellName = sectionName ? splitsBody.querySelector(`.row-section[data-section-name="${sectionName}"] .cell-name`) : null;
-            if (sectionCellName) {sectionCellName.classList.add('active-split');}
+            if (sectionCellName) { sectionCellName.classList.add('active-split'); }
             this.classList.add('selected');
 
             const newSectionRow = splitsBody.querySelector(`.row-subsplit[data-split-index="${splitIndex}"]`);
@@ -3470,13 +3083,13 @@ function render(data) {
                 scrollToSelectedSplit();
             }, 50);
 
-            if (state.settings.showGraph) {drawComparisonGraph();}
+            if (state.settings.showGraph) { drawComparisonGraph(); }
         });
     });
 
     splitsBody.querySelectorAll('.row-section').forEach(sec => {
         const secName = sec.getAttribute('data-section-name');
-        if (secName) {updateSectionVisibility(secName);}
+        if (secName) { updateSectionVisibility(secName); }
     });
 
     if (state.selectedSplitIdx === null && state.selectedGraphPointIdx === null) {
@@ -3507,12 +3120,12 @@ function drawComparisonGraph() {
 
         if (shouldHideGraphAndTable() || !state.settings.showGraph) {
             const graphContainer = DOM.get('graph-container');
-            if (graphContainer) {graphContainer.classList.add('hidden');}
+            if (graphContainer) { graphContainer.classList.add('hidden'); }
             state.graphAnimationFrame = null;
             return;
         }
         const graphContainer = DOM.get('graph-container');
-        if (graphContainer) {graphContainer.classList.remove('hidden');}
+        if (graphContainer) { graphContainer.classList.remove('hidden'); }
 
         const ctx = canvas.getContext('2d');
         const rect = canvas.getBoundingClientRect();
@@ -3595,7 +3208,7 @@ function drawComparisonGraph() {
 
             if (typeof act === 'number' || isSkipped) {
                 pointsWithTime.push(i);
-                if (isSkipped) {skippedSplits.add(i);}
+                if (isSkipped) { skippedSplits.add(i); }
             }
         });
 
@@ -3709,7 +3322,7 @@ function drawComparisonGraph() {
                     break;
                 }
             }
-            if (prev !== null && next !== null) {pt.renderDelta = (prev + next) / 2;} else if (prev !== null) {pt.renderDelta = prev;} else if (next !== null) {pt.renderDelta = next;} else {pt.renderDelta = 0;}
+            if (prev !== null && next !== null) { pt.renderDelta = (prev + next) / 2; } else if (prev !== null) { pt.renderDelta = prev; } else if (next !== null) { pt.renderDelta = next; } else { pt.renderDelta = 0; }
         });
 
         if (dataPoints.length === 0) {
@@ -3854,9 +3467,9 @@ function drawComparisonGraph() {
             displayIndices.add(0);
             displayIndices.add(effectivePointsCount - 1);
         }
-        if (activeDataIdx !== -1) {displayIndices.add(activeDataIdx);}
-        if (maxDeltaIdx !== -1) {displayIndices.add(maxDeltaIdx);}
-        if (minDeltaIdx !== -1) {displayIndices.add(minDeltaIdx);}
+        if (activeDataIdx !== -1) { displayIndices.add(activeDataIdx); }
+        if (maxDeltaIdx !== -1) { displayIndices.add(maxDeltaIdx); }
+        if (minDeltaIdx !== -1) { displayIndices.add(minDeltaIdx); }
         sectionEnds.forEach(s => displayIndices.add(s.dataIndex));
 
         const specialIndices = new Set();
@@ -3864,8 +3477,8 @@ function drawComparisonGraph() {
             specialIndices.add(0);
             specialIndices.add(effectivePointsCount - 1);
         }
-        if (maxDeltaIdx !== -1) {specialIndices.add(maxDeltaIdx);}
-        if (minDeltaIdx !== -1) {specialIndices.add(minDeltaIdx);}
+        if (maxDeltaIdx !== -1) { specialIndices.add(maxDeltaIdx); }
+        if (minDeltaIdx !== -1) { specialIndices.add(minDeltaIdx); }
         const regularIndices = Array.from(displayIndices).filter(idx => !specialIndices.has(idx));
 
         dataPoints.forEach((pt, i) => {
@@ -3966,10 +3579,10 @@ function drawComparisonGraph() {
         });
 
         deltaBoxes.sort((a, b) => {
-            if (a.isActive && !b.isActive) {return 1;}
-            if (!a.isActive && b.isActive) {return -1;}
-            if (a.isSpecial && !b.isSpecial) {return 1;}
-            if (!a.isSpecial && b.isSpecial) {return -1;}
+            if (a.isActive && !b.isActive) { return 1; }
+            if (!a.isActive && b.isActive) { return -1; }
+            if (a.isSpecial && !b.isSpecial) { return 1; }
+            if (!a.isSpecial && b.isSpecial) { return -1; }
             return 0;
         });
 
@@ -4050,7 +3663,7 @@ function getDeltaBoxColor(delta, isActive) {
 }
 
 function drawDeltaBoxWithColor(ctx, pt, idx, getX, deltaToY, width, height, footerHeight, isActive, color) {
-    if (!pt) {return;}
+    if (!pt) { return; }
     const x = getX(idx);
 
     ctx.setLineDash([2, 2]);
@@ -4113,9 +3726,9 @@ function handleCanvasClick(e) {
         e.preventDefault();
     }
 
-    if (!state.graphData?.dataPoints?.length) {return;}
+    if (!state.graphData?.dataPoints?.length) { return; }
     const canvas = DOM.get('comparison-graph');
-    if (!canvas) {return;}
+    if (!canvas) { return; }
 
     const rect = canvas.getBoundingClientRect();
     let clientX, clientY;
@@ -4149,12 +3762,12 @@ function handleCanvasClick(e) {
         }
     });
 
-    if (closestIdx === -1) {return;}
+    if (closestIdx === -1) { return; }
 
     const clickedPt = dataPoints[closestIdx];
     const splitIndex = clickedPt.index;
     const splitsBody = DOM.get('splits-body');
-    if (!splitsBody) {return;}
+    if (!splitsBody) { return; }
 
     const isCurrentlySelected = state.selectedGraphPointIdx === closestIdx || state.selectedSplitIdx === splitIndex;
 
@@ -4164,7 +3777,7 @@ function handleCanvasClick(e) {
         splitsBody.querySelectorAll('.cell-name.active-split').forEach(el => el.classList.remove('active-split'));
         splitsBody.querySelectorAll('.row-subsplit.selected').forEach(el => el.classList.remove('selected'));
 
-        if (state.settings.showGraph) {drawComparisonGraph();}
+        if (state.settings.showGraph) { drawComparisonGraph(); }
 
         setTimeout(() => {
             scrollToActiveSplit();
@@ -4180,14 +3793,14 @@ function handleCanvasClick(e) {
 
     const clickedRow = splitsBody.querySelector(`.row-subsplit[data-split-index="${splitIndex}"]`);
 
-    if (clickedRow) {clickedRow.classList.add('selected');}
+    if (clickedRow) { clickedRow.classList.add('selected'); }
 
     // Apply active-split to the section name, not to the subsplit
     const newSectionRow = splitsBody.querySelector(`.row-subsplit[data-split-index="${splitIndex}"]`);
     const newSectionName = newSectionRow ? newSectionRow.getAttribute('data-section') : null;
 
     const clickedSectionRow = splitsBody.querySelector(`.row-section[data-section-name="${newSectionName}"] .cell-name`);
-    if (clickedSectionRow) {clickedSectionRow.classList.add('active-split');}
+    if (clickedSectionRow) { clickedSectionRow.classList.add('active-split'); }
 
     if (newSectionName) {
         state.expandedSections.clear();
@@ -4196,14 +3809,14 @@ function handleCanvasClick(e) {
 
     splitsBody.querySelectorAll('.row-section').forEach(sec => {
         const secName = sec.getAttribute('data-section-name');
-        if (secName) {updateSectionVisibility(secName);}
+        if (secName) { updateSectionVisibility(secName); }
     });
 
     setTimeout(() => {
         scrollToSelectedSplit();
     }, 50);
 
-    if (state.settings.showGraph) {drawComparisonGraph();}
+    if (state.settings.showGraph) { drawComparisonGraph(); }
 }
 
 /* ==================== FUNÇÕES DE TIMER ==================== */
@@ -4241,7 +3854,7 @@ function updateTimer() {
         }
         if (state.runData && (nowTime - lastGraphDraw) >= CONFIG.GRAPH_DRAW_THROTTLE) {
             updatePredictionDisplay();
-            if (state.settings.showGraph) {drawComparisonGraph();}
+            if (state.settings.showGraph) { drawComparisonGraph(); }
             lastGraphDraw = nowTime;
         }
     } else if (state.timerState === 'Paused') {
@@ -4385,7 +3998,7 @@ function saveSettings() {
 
 function applyChromaKey() {
     const lsWindow = document.getElementById('ls-window');
-    if (!lsWindow) {return;}
+    if (!lsWindow) { return; }
 
     const isEnabled = state.settings.chromaKey.enabled;
 
@@ -4402,7 +4015,7 @@ function setupChromaKeyControls() {
     if (toggleChromaKey) {
         toggleChromaKey.checked = state.settings.chromaKey.enabled !== false;
 
-        toggleChromaKey.addEventListener('change', function() {
+        toggleChromaKey.addEventListener('change', function () {
             state.settings.chromaKey.enabled = this.checked;
             saveSettings();
             applyChromaKey();
@@ -4431,14 +4044,14 @@ function _setupConnectionConfig() {
             }
         }
 
-        if (domainInput) {domainInput.value = domain;}
-        if (portInput) {portInput.value = port;}
+        if (domainInput) { domainInput.value = domain; }
+        if (portInput) { portInput.value = port; }
     }
 
     function buildUrl() {
         const domain = domainInput?.value?.trim() || 'localhost';
         const port = portInput?.value?.trim() || '15721';
-        if (!domain || !port) {return null;}
+        if (!domain || !port) { return null; }
         return `ws://${domain}:${port}`;
     }
 
@@ -4487,10 +4100,10 @@ function showSettingsModal() {
     const toggleControls = DOM.get('toggle-controls');
     const errorNotification = DOM.get('error-notification');
 
-    if (modal) {modal.classList.add('show');}
-    if (toggleGraph) {toggleGraph.checked = state.settings.showGraph;}
-    if (toggleTable) {toggleTable.checked = state.settings.showTable;}
-    if (toggleControls) {toggleControls.checked = state.settings.showControls;}
+    if (modal) { modal.classList.add('show'); }
+    if (toggleGraph) { toggleGraph.checked = state.settings.showGraph; }
+    if (toggleTable) { toggleTable.checked = state.settings.showTable; }
+    if (toggleControls) { toggleControls.checked = state.settings.showControls; }
 
     applyTheme(state.settings.theme);
 
@@ -4551,6 +4164,11 @@ function setupSettingsModal() {
     const languageFlag = document.getElementById('language-flag');
     const languageCode = document.getElementById('language-code');
 
+    // Translate language selector title
+    if (languageSelector) {
+        languageSelector.title = translate('language_selector_title') || 'Idioma';
+    }
+
     console.log('[Language] Elements found:', {
         selector: !!languageSelector,
         dropdown: !!languageDropdown,
@@ -4560,6 +4178,7 @@ function setupSettingsModal() {
 
     if (languageSelector && languageDropdown) {
         console.log('[Language] Setting up click handlers');
+
         // Toggle dropdown
         languageSelector.addEventListener('click', (e) => {
             console.log('[Language] Selector clicked');
@@ -4599,7 +4218,7 @@ function setupSettingsModal() {
         toggleGraph.addEventListener('change', function () {
             state.settings.showGraph = this.checked;
             saveSettings();
-            if (state.runData) {render(state.runData);}
+            if (state.runData) { render(state.runData); }
             hideModalWithToast(translate(this.checked ? 'notification_graph_enabled' : 'notification_graph_disabled'));
         });
     }
@@ -4609,7 +4228,7 @@ function setupSettingsModal() {
         toggleTable.addEventListener('change', function () {
             state.settings.showTable = this.checked;
             saveSettings();
-            if (state.runData) {render(state.runData);}
+            if (state.runData) { render(state.runData); }
             hideModalWithToast(translate(this.checked ? 'notification_table_enabled' : 'notification_table_disabled'));
         });
     }
@@ -4630,7 +4249,7 @@ function setupSettingsModal() {
         toggleAlwaysExpanded.addEventListener('change', function () {
             state.settings.alwaysExpandedSplits = this.checked;
             saveSettings();
-            if (state.runData) {render(state.runData);}
+            if (state.runData) { render(state.runData); }
         });
     }
 
@@ -4652,10 +4271,10 @@ function setupSettingsModal() {
 
             clearConnectionStatus();
 
-            if (toggleGraph) {toggleGraph.checked = state.settings.showGraph !== false;}
-            if (toggleTable) {toggleTable.checked = state.settings.showTable !== false;}
-            if (toggleControls) {toggleControls.checked = state.settings.showControls !== false;}
-            if (toggleAlwaysExpanded) {toggleAlwaysExpanded.checked = state.settings.alwaysExpandedSplits !== false;}
+            if (toggleGraph) { toggleGraph.checked = state.settings.showGraph !== false; }
+            if (toggleTable) { toggleTable.checked = state.settings.showTable !== false; }
+            if (toggleControls) { toggleControls.checked = state.settings.showControls !== false; }
+            if (toggleAlwaysExpanded) { toggleAlwaysExpanded.checked = state.settings.alwaysExpandedSplits !== false; }
 
             // Re-apply chroma key state
             applyChromaKey();
@@ -4722,10 +4341,10 @@ function setupSettingsModal() {
 
                 updateThemeDisplay('default');
 
-                if (toggleGraph) {toggleGraph.checked = true;}
-                if (toggleTable) {toggleTable.checked = true;}
-                if (toggleControls) {toggleControls.checked = true;}
-                if (toggleAlwaysExpanded) {toggleAlwaysExpanded.checked = false;}
+                if (toggleGraph) { toggleGraph.checked = true; }
+                if (toggleTable) { toggleTable.checked = true; }
+                if (toggleControls) { toggleControls.checked = true; }
+                if (toggleAlwaysExpanded) { toggleAlwaysExpanded.checked = false; }
 
                 const newDomainInput = DOM.get('connection-domain');
                 const newPortInput = DOM.get('connection-port');
@@ -4733,15 +4352,15 @@ function setupSettingsModal() {
                     newDomainInput.value = domainInput.value;
                     newPortInput.value = portInput.value;
                 } else {
-                    if (newDomainInput) {newDomainInput.value = 'localhost';}
-                    if (newPortInput) {newPortInput.value = '15721';}
+                    if (newDomainInput) { newDomainInput.value = 'localhost'; }
+                    if (newPortInput) { newPortInput.value = '15721'; }
                 }
 
                 applyChromaKey();
 
                 CONFIG.WS_URL = wsUrl;
 
-                if (state.runData) {render(state.runData);}
+                if (state.runData) { render(state.runData); }
 
                 updateControlsVisibility();
 
@@ -4955,7 +4574,7 @@ const ExportManager = {
      * Get valid subsplits (starting with '-')
      */
     getValidSubsplits(segments) {
-        if (!segments || !Array.isArray(segments)) {return [];}
+        if (!segments || !Array.isArray(segments)) { return []; }
 
         return segments.filter(seg => {
             const name = seg.name ? seg.name.trim() : '';
@@ -5115,7 +4734,7 @@ const ExportManager = {
             const allSections = new Set();
             state.runData.run.segments.forEach(seg => {
                 const sec = DOM.extractSectionName(seg.name);
-                if (sec) {allSections.add(sec);}
+                if (sec) { allSections.add(sec); }
             });
             state.expandedSections = allSections;
             render(state.runData);
@@ -5340,7 +4959,7 @@ const ExportManager = {
      * Escape CSV value
      */
     escapeCSVValue(str) {
-        if (str === null || str === undefined) {return '';}
+        if (str === null || str === undefined) { return ''; }
         const strValue = String(str);
         if (/[";,\r\n]/.test(strValue)) {
             return '"' + strValue.replace(/"/g, '""') + '"';
@@ -5409,7 +5028,7 @@ const ExportManager = {
      */
     setButtonState(btnId, state, text) {
         const btn = document.getElementById(btnId);
-        if (!btn) {return;}
+        if (!btn) { return; }
 
         const textSpan = btn.querySelector('.export-button-text');
 
@@ -5494,14 +5113,14 @@ function cleanup() {
 function handleResize() {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
-        if (state.runData && state.settings.showGraph) {drawComparisonGraph();}
+        if (state.runData && state.settings.showGraph) { drawComparisonGraph(); }
     }, CONFIG.RESIZE_DEBOUNCE);
 }
 
 function setupGraphResizer() {
     const wrapper = document.getElementById('graph-wrapper');
     const resizer = document.getElementById('graph-resizer');
-    if (!wrapper || !resizer) {return;}
+    if (!wrapper || !resizer) { return; }
 
     const MIN = 80;
     const MAX = 400;
@@ -5516,7 +5135,7 @@ function setupGraphResizer() {
     let graphRedrawReq = null;
 
     function onPointerMove(ev) {
-        if (!dragging) {return;}
+        if (!dragging) { return; }
         ev.preventDefault();
 
         const dy = (ev.clientY - startY);
@@ -5533,7 +5152,7 @@ function setupGraphResizer() {
     }
 
     function onPointerUp(_ev) {
-        if (!dragging) {return;}
+        if (!dragging) { return; }
         dragging = false;
         resizer.classList.remove('active');
 
@@ -5589,7 +5208,7 @@ function setupGraphResizer() {
     resizer.addEventListener('touchstart', onPointerDown, { passive: false });
 
     resizer.addEventListener('click', (_ev) => {
-        if (dragging) {return;}
+        if (dragging) { return; }
         resizer.classList.add('active');
         setTimeout(() => resizer.classList.remove('active'), 1500);
     });
@@ -5702,7 +5321,7 @@ function init() {
     connectionManager.init();
     updateControlsVisibility();
     initializeLogReader();
-    
+
     // Auto-connect to LiveSplit server on startup
     console.log('[App] Auto-connecting to LiveSplit server...');
     connectionManager.connect();
