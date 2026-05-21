@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-main: #050505;
+  --text-dim: #888;
+  --theme-accent: #00a2ff;
+  --theme-accent-rgb: 0, 162, 255;
+}
+
+body {
+  color: white;
+  background: var(--bg-main);
+  font-family: Arial, Helvetica, sans-serif;
+}
