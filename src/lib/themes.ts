@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
 
 export const THEME_COLORS: Record<string, { bg: string, text: string, accent: string, accentRgb: string }> = {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Header } from '@/components/Header';
 import { TimerDisplay } from '@/components/TimerDisplay';
 import { Predictions } from '@/components/Predictions';

@@ -31,7 +31,7 @@ export function useTimer() {
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [timerState, lastTime]);
+  }, [timerState, lastTime, animate]);
 
   return {
     time: displayTime,

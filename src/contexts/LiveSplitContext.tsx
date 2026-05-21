@@ -96,7 +96,7 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
             }
             return;
           }
-        } catch (e) {
+        } catch {
           if (lastCommand.current === 'getbestpossibletime') {
              setBestPossibleTime(parseTime(message));
           } else if (lastCommand.current === 'getpredictedtime Personal Best') {
@@ -156,7 +156,7 @@ function parseTime(timeString: string): number | null {
     let ms = seconds * 1000;
     if (csStr) ms += parseFloat(csStr) * 10;
     return ms;
-  } catch (e) {
+  } catch {
     return null;
   }
 }

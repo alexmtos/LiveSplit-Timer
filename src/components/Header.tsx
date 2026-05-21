@@ -51,7 +51,9 @@ export function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
   );
 }
 
-function formatPB(segments: any[]) {
+import { Segment } from '@/types';
+
+function formatPB(segments: Segment[]) {
   const last = segments[segments.length - 1];
   const pb = last?.comparisons?.['Personal Best']?.realTime;
   if (!pb) return '-';
