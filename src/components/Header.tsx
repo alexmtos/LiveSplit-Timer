@@ -5,6 +5,7 @@ import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useI18n } from '@/hooks/useI18n';
 import { Settings as SettingsIcon, ExternalLink } from 'lucide-react';
 import { formatTime } from '@/hooks/useTimer';
+import { Segment } from '@/types';
 
 export function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { runData, worldRecord } = useLiveSplit();
@@ -50,8 +51,6 @@ export function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
     </header>
   );
 }
-
-import { Segment } from '@/types';
 
 function formatPB(segments: Segment[]) {
   const last = segments[segments.length - 1];

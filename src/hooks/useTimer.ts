@@ -6,7 +6,7 @@ import { useLiveSplit } from '@/contexts/LiveSplitContext';
 export function useTimer() {
   const { runData } = useLiveSplit();
   const [displayTime, setDisplayTime] = useState(0);
-  const requestRef = useRef<number>(null);
+  const requestRef = useRef<number | null>(null);
 
   const timerState = runData?.timerState || 'NotRunning';
   const lastTime = runData?.currentTime?.realTime || 0;
@@ -16,22 +16,22 @@ export function useTimer() {
     lastTs.current = performance.now();
   }, [lastTime]);
 
-  const animate = (time: number) => {
-    if (timerState === 'Running') {
-      const elapsed = lastTime + (time - lastTs.current);
-      setDisplayTime(elapsed);
-    } else {
-      setDisplayTime(lastTime);
-    }
-    requestRef.current = requestAnimationFrame(animate);
-  };
-
   useEffect(() => {
+    const animate = (time: number) => {
+      if (timerState === 'Running') {
+        const elapsed = lastTime + (time - lastTs.current);
+        setDisplayTime(elapsed);
+      } else {
+        setDisplayTime(lastTime);
+      }
+      requestRef.current = requestAnimationFrame(animate);
+    };
+
     requestRef.current = requestAnimationFrame(animate);
     return () => {
       if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
-  }, [timerState, lastTime, animate]);
+  }, [timerState, lastTime]);
 
   return {
     time: displayTime,
