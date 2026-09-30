@@ -30,7 +30,10 @@ describe('connection URLs', () => {
   });
 
   it('detects mixed content', () => {
-    expect(isBlockedByMixedContent('ws://localhost:15721', 'https:')).toBe(true);
+    expect(isBlockedByMixedContent('ws://192.168.0.10:15721', 'https:')).toBe(true);
+    expect(isBlockedByMixedContent('ws://localhost:15721', 'https:')).toBe(false);
+    expect(isBlockedByMixedContent('ws://127.0.0.1:15721', 'https:')).toBe(false);
+    expect(isBlockedByMixedContent('ws://[::1]:15721', 'https:')).toBe(false);
     expect(isBlockedByMixedContent('wss://localhost:15721', 'https:')).toBe(false);
     expect(isBlockedByMixedContent('ws://localhost:15721', 'http:')).toBe(false);
   });
@@ -120,6 +123,12 @@ describe('URL overrides', () => {
     expect(url).toBe('http://localhost:3000/?host=10.0.0.2&port=15722&theme=retro&lang=de&transparent=1&stream=1&hide=graph');
     const search = new URL(url).search;
     expect({ ...DEFAULT_SETTINGS, ...parseUrlOverrides(search, DEFAULT_SETTINGS.wsUrl) }).toEqual(settings);
+  });
+
+  it('adds the base path and trailing slash of a static deployment', () => {
+    const options = { basePath: '/LiveSplit-Timer', trailingSlash: true };
+    expect(buildOverlayUrl('https://a.github.io', '/timer', DEFAULT_SETTINGS, options)).toBe('https://a.github.io/LiveSplit-Timer/timer/?lang=pt-BR');
+    expect(buildOverlayUrl('https://a.github.io', '/', DEFAULT_SETTINGS, options)).toBe('https://a.github.io/LiveSplit-Timer/?lang=pt-BR');
   });
 
   it('omits section visibility for single-section pages', () => {

@@ -100,9 +100,18 @@ export function testConnection(url: string, token = '', timeoutMs = 5000): Promi
   });
 }
 
-/** Browsers block `ws://` from pages served over HTTPS. */
+/**
+ * Browsers block `ws://` from pages served over HTTPS, except to this computer
+ * (localhost, 127.0.0.0/8, ::1), which Chrome, Edge, Firefox and OBS allow.
+ */
 export function isBlockedByMixedContent(url: string, pageProtocol: string): boolean {
-  return pageProtocol === 'https:' && url.startsWith('ws://');
+  if (pageProtocol !== 'https:' || !url.startsWith('ws://')) return false;
+  try {
+    const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+    return !(host === 'localhost' || host.endsWith('.localhost') || /^127\./.test(host) || host === '::1');
+  } catch {
+    return true;
+  }
 }
 
 /**

@@ -18,7 +18,7 @@ O app segue o que está configurado no LiveSplit: método de tempo (Real Time ou
 
 ### Pré-requisitos
 
-- Node.js 22 (a versão mínima para rodar o app é 20.9).
+- Node.js 22, apenas para rodar o app no seu computador (a versão mínima é 20.9).
 - A versão atual do LiveSplit com o componente LiveSplit WebSocket Server 2.x. A versão 1.x também funciona, com os recursos reduzidos descritos em [Versões do componente](docs/referencia.md#versões-do-componente).
 
 > **Nota:** o app não funciona com o servidor embutido do LiveSplit (*Control → Start TCP Server* ou *Start WebSocket Server*, porta 16834). Ele usa outro protocolo e não envia o estado do timer.
@@ -33,7 +33,15 @@ Se você não ativar o início automático, inicie o servidor manualmente: cliqu
 
 > **Nota:** um componente adicionado na versão 2 só aceita conexões do próprio computador; layouts criados com a versão 1 continuam aceitando conexões da rede. Para abrir o app em outro aparelho, como o celular, escolha **Other devices on the network too** em **Accept connections from**. Se você definir um **Token** ou **Allowed web origins**, veja [Proteger o acesso ao LiveSplit](docs/referencia.md#proteger-o-acesso-ao-livesplit).
 
-### 2. Instale e inicie o app
+### 2. Abra o app
+
+Você pode usar a versão publicada ou rodar o app no seu computador.
+
+**Versão publicada:** acesse [https://alexmtos.github.io/LiveSplit-Timer/](https://alexmtos.github.io/LiveSplit-Timer/). Ela funciona no navegador e no OBS do mesmo computador do LiveSplit, sem instalar nada.
+
+> **Nota:** a versão publicada usa HTTPS. Navegadores só permitem que uma página HTTPS se conecte ao LiveSplit do próprio computador (`localhost`). Para conectar a um LiveSplit em outro computador ou usar o controle remoto pelo celular, rode o app localmente.
+
+**No seu computador:** requer Node.js.
 
 ```bash
 npm install
@@ -41,9 +49,11 @@ npm run build
 npm start
 ```
 
-### 3. Abra o overlay
+Depois, acesse [http://localhost:3000](http://localhost:3000).
 
-Acesse [http://localhost:3000](http://localhost:3000). O nome do jogo e os splits aparecem assim que o app se conecta ao LiveSplit.
+### 3. Confirme a conexão
+
+O nome do jogo e os splits aparecem assim que o app se conecta ao LiveSplit.
 
 Se o LiveSplit estiver em outro computador, clique na engrenagem no canto superior direito, informe o IP e a porta e clique em **Testar & Salvar**.
 

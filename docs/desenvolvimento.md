@@ -21,6 +21,27 @@ Rode o projeto localmente, teste sem o LiveSplit aberto e entenda como o código
 
 Antes de abrir um pull request, rode `npm run lint`, `npm run typecheck`, `npm test` e `npm run build`.
 
+## Publicar no GitHub Pages
+
+O workflow `.github/workflows/pages.yml` publica o app em `https://<usuário>.github.io/<repositório>/` a cada push na branch `main`. Você também pode rodá-lo manualmente em *Actions → Deploy to GitHub Pages → Run workflow*.
+
+Ele roda lint, typecheck e testes e gera uma exportação estática (`STATIC_EXPORT=1`) com o caminho base informado pelo GitHub Pages (`PAGES_BASE_PATH`). Em seguida, publica a pasta `out/`.
+
+Para ativar a publicação:
+
+1. Em *Settings → Pages*, escolha **GitHub Actions** em **Source**.
+2. Faça um push na `main`, ou rode o workflow manualmente.
+
+> **Nota:** no plano gratuito do GitHub, o Pages só funciona em repositórios públicos.
+
+Para reproduzir a build do Pages localmente:
+
+```bash
+STATIC_EXPORT=1 PAGES_BASE_PATH=/LiveSplit-Timer npm run build
+```
+
+Sem essas variáveis, `npm run build` gera a build normal usada por `npm start`.
+
 ## Testar sem o LiveSplit
 
 `scripts/mock-livesplit-server.mjs` imita o componente LiveSplit WebSocket Server 2.x. Ele fala o protocolo 2 com quem conecta com `?protocol=2` e o protocolo 1 com os demais, envia o estado ao conectar, a cada evento e a cada 15 segundos, e aceita os comandos usados pelo app.

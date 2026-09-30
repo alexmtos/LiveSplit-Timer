@@ -17,6 +17,7 @@ Web overlay for LiveSplit (Next.js 16 App Router, React 19, TypeScript, Tailwind
 - `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`: run all four before committing.
 - `npm run mock:server -- --scale 0.05`: fake LiveSplit server on `ws://localhost:15721` (`--game-time`, `--src`, `--port`).
 - `npm run dev`: dev server on port 3000.
+- GitHub Pages build: `STATIC_EXPORT=1 PAGES_BASE_PATH=/LiveSplit-Timer npm run build` (static export into `out/`, deployed by `.github/workflows/pages.yml` on pushes to `main`). Keep every route statically exportable: no server-only features, dynamic segments need `generateStaticParams` with `dynamicParams = false`, and build app URLs with `NEXT_PUBLIC_BASE_PATH`.
 
 ## Code map
 

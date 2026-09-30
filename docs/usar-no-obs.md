@@ -4,7 +4,8 @@ Adicione o LiveSplit Timer à sua live como fonte de navegador, com fundo transp
 
 ## Antes de começar
 
-- O app precisa estar rodando (`npm start`) e conectado ao LiveSplit. Veja o [início rápido](../README.md#início-rápido).
+- Use a [versão publicada](https://alexmtos.github.io/LiveSplit-Timer/) ou rode o app no seu computador (`npm start`). Veja o [início rápido](../README.md#início-rápido).
+- A versão publicada só alcança o LiveSplit do mesmo computador em que o OBS está. Se o LiveSplit rodar em outro PC, rode o app localmente.
 - Use o OBS 31 ou mais recente. Versões anteriores usam um navegador interno antigo (Chromium 103) que pode não exibir o app corretamente.
 
 ## Adicionar o overlay completo

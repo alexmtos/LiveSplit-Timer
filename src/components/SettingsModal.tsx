@@ -113,7 +113,12 @@ function ObsUrlSection() {
     setOrigin(window.location.origin);
   }, []);
 
-  const url = origin ? buildOverlayUrl(origin, path, settings) : '';
+  const url = origin
+    ? buildOverlayUrl(origin, path, settings, {
+        basePath: process.env.NEXT_PUBLIC_BASE_PATH ?? '',
+        trailingSlash: process.env.NEXT_PUBLIC_TRAILING_SLASH === '1',
+      })
+    : '';
 
   const copy = async () => {
     try {

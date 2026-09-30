@@ -34,12 +34,15 @@ Isso quase sempre significa que o endereço aponta para o servidor embutido do L
 
 ## A conexão funciona no computador, mas não pela internet ou por HTTPS
 
-Navegadores bloqueiam conexões `ws://` feitas a partir de páginas abertas por `https://`. O painel de configurações avisa quando isso acontece.
+Navegadores bloqueiam conexões `ws://` feitas a partir de páginas abertas por `https://`, como a [versão publicada](https://alexmtos.github.io/LiveSplit-Timer/). A exceção é o próprio computador (`localhost` ou `127.0.0.1`), que Chrome, Edge, Firefox e o OBS permitem. O Safari bloqueia até essa exceção. O painel de configurações avisa quando o endereço será bloqueado.
 
 Para resolver, faça uma destas opções:
 
-- Abra o app por `http://`, por exemplo `http://localhost:3000` ou `http://<IP-do-computador>:3000`.
+- Use `localhost` como IP quando o LiveSplit estiver no mesmo computador.
+- Rode o app localmente e abra-o por `http://`, por exemplo `http://localhost:3000` ou `http://<IP-do-computador>:3000`.
 - Coloque o servidor atrás de um proxy com TLS e use um endereço `wss://`.
+
+> **Nota:** versões recentes do Chrome podem pedir permissão para que um site acesse dispositivos da rede local. Permita o acesso para o app alcançar o LiveSplit.
 
 ## Os tempos são diferentes dos do LiveSplit
 

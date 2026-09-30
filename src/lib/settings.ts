@@ -160,8 +160,17 @@ export function parseUrlOverrides(search: string, currentWsUrl: string): Partial
   return overrides;
 }
 
-/** Builds a URL that reproduces `settings` for the given page (e.g. "/" or "/timer"). */
-export function buildOverlayUrl(origin: string, path: string, settings: Settings): string {
+/**
+ * Builds a URL that reproduces `settings` for the given page ("/" or "/timer").
+ * `basePath` and `trailingSlash` match the deployment (GitHub Pages serves the
+ * app from "/<repository>/" with "/timer/" style paths).
+ */
+export function buildOverlayUrl(
+  origin: string,
+  path: string,
+  settings: Settings,
+  { basePath = '', trailingSlash = false }: { basePath?: string; trailingSlash?: boolean } = {},
+): string {
   const params = new URLSearchParams();
   const address = parseWsUrl(settings.wsUrl);
   if (settings.wsUrl !== DEFAULT_WS_URL) {
@@ -181,5 +190,6 @@ export function buildOverlayUrl(origin: string, path: string, settings: Settings
     if (hidden.length > 0) params.set('hide', hidden.join(','));
   }
   const query = params.toString().replace(/%2C/g, ',');
-  return `${origin}${path}${query ? `?${query}` : ''}`;
+  const page = path === '/' || path === '' ? '/' : trailingSlash ? `${path}/` : path;
+  return `${origin}${basePath}${page}${query ? `?${query}` : ''}`;
 }
