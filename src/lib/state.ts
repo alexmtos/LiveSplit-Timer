@@ -1,4 +1,4 @@
-import type { CommandError, LiveSplitState, RunMetadata, Segment, ServerInfo, TimeValue, TimerPhase, TimingMethod } from '@/types';
+import type { CommandError, ConnectionDiagnostic, LiveSplitState, RunMetadata, Segment, ServerInfo, TimeValue, TimerPhase, TimingMethod } from '@/types';
 
 type Json = Record<string, unknown>;
 
@@ -127,7 +127,8 @@ export function parseServerMessage(data: unknown): ServerMessage {
   } catch {
     return { kind: 'text', text: data.trim() };
   }
-  if (!isObject(json)) return { kind: 'other' };
+  // Replies like "0.00" or "-" parse as JSON scalars but are plain text too.
+  if (!isObject(json)) return Array.isArray(json) ? { kind: 'other' } : { kind: 'text', text: data.trim() };
 
   switch (json.type) {
     case 'hello': {
@@ -211,4 +212,47 @@ export function withCachedIcons(state: LiveSplitState, cache: IconCache | null):
 /** Whether a state carries icons (v1 always does; v2 only when requested). */
 export function hasIcons(state: LiveSplitState): boolean {
   return !!state.run.gameIcon || state.run.segments.some((seg) => seg.icon);
+}
+
+/** Start of a raw message, for showing in diagnostics. */
+export function messageSnippet(data: unknown, max = 300): string {
+  const text = typeof data === 'string' ? data : `[${Object.prototype.toString.call(data).slice(8, -1)}]`;
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+/**
+ * Collects what arrives before the first state, so a connection that never
+ * produces one can say why (see ConnectionDiagnostic).
+ */
+export class GreetingWatcher {
+  private error: string | null = null;
+  private unknown: string | null = null;
+  private text: string | null = null;
+  private close: string | null = null;
+
+  /** Feeds a raw message; returns the parsed message for further handling. */
+  observe(data: unknown): ServerMessage {
+    const message = parseServerMessage(data);
+    if (message.kind === 'response' && !message.ok && message.error && this.error === null) {
+      this.error = `${message.error.code}${message.error.message ? `: ${message.error.message}` : ''}`;
+    } else if (message.kind === 'other' && this.unknown === null) {
+      this.unknown = messageSnippet(data);
+    } else if (message.kind === 'text' && this.text === null) {
+      this.text = messageSnippet(message.text);
+    }
+    return message;
+  }
+
+  /** Records that the server closed the connection (component 2.x gives the reason when it cannot send the state). */
+  closed(code: number, reason: string) {
+    this.close = reason ? `${code}: ${messageSnippet(reason)}` : String(code);
+  }
+
+  diagnostic(): ConnectionDiagnostic {
+    if (this.text !== null) return { reason: 'text', detail: this.text };
+    if (this.error !== null) return { reason: 'error', detail: this.error };
+    if (this.close !== null) return { reason: 'closed', detail: this.close };
+    if (this.unknown !== null) return { reason: 'unknown', detail: this.unknown };
+    return { reason: 'silent', detail: null };
+  }
 }

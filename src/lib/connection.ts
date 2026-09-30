@@ -1,4 +1,5 @@
-import { parseServerMessage } from './state';
+import type { ConnectionDiagnostic } from '@/types';
+import { GreetingWatcher } from './state';
 
 export const DEFAULT_PORT = '15721';
 export const DEFAULT_WS_URL = `ws://localhost:${DEFAULT_PORT}`;
@@ -60,43 +61,62 @@ export function buildWsUrl(hostInput: string, portInput: string, secure = false)
 
 export type TestResult = 'ok' | 'failed' | 'unauthorized' | 'wrong-server';
 
+export interface TestOutcome {
+  result: TestResult;
+  /** For 'wrong-server': what arrived instead of a timer state. */
+  diagnostic: ConnectionDiagnostic | null;
+}
+
+/** Time to wait for the greeting before asking for the state once. */
+const TEST_STATE_REQUEST_MS = 2000;
+
 /**
  * Opens a throwaway connection and waits for the server's greeting, so a wrong
  * token (component 2.x accepts the socket, then refuses) or a server that does
- * not speak this protocol is told apart from a working connection.
+ * not send a timer state is told apart from a working connection.
  */
-export function testConnection(url: string, token = '', timeoutMs = 5000): Promise<TestResult> {
+export function testConnection(url: string, token = '', timeoutMs = 5000): Promise<TestOutcome> {
   return new Promise((resolve) => {
     let socket: WebSocket;
     try {
       socket = new WebSocket(connectionUrl(url, token));
     } catch {
-      resolve('failed');
+      resolve({ result: 'failed', diagnostic: null });
       return;
     }
+    const watcher = new GreetingWatcher();
     let opened = false;
+    let askTimer: ReturnType<typeof setTimeout> | undefined;
     const finish = (result: TestResult) => {
       clearTimeout(timer);
+      clearTimeout(askTimer);
       socket.onopen = socket.onerror = socket.onclose = socket.onmessage = null;
       try {
         socket.close();
       } catch {
         // already closed
       }
-      resolve(result);
+      resolve({ result, diagnostic: result === 'wrong-server' ? watcher.diagnostic() : null });
     };
     const timer = setTimeout(() => finish(opened ? 'wrong-server' : 'failed'), timeoutMs);
     socket.onopen = () => {
       opened = true;
+      // Like the app: if no greeting comes, ask for the state once; an error reply explains why.
+      askTimer = setTimeout(() => {
+        if (socket.readyState === WebSocket.OPEN) socket.send('state');
+      }, TEST_STATE_REQUEST_MS);
     };
     socket.onmessage = (event) => {
-      const message = parseServerMessage(event.data);
+      const message = watcher.observe(event.data);
       if (message.kind === 'state') finish('ok');
       else if (message.kind === 'response' && message.error?.code === 'unauthorized') finish('unauthorized');
       else if (message.kind === 'text') finish('wrong-server');
     };
     socket.onerror = () => finish('failed');
-    socket.onclose = () => finish('failed');
+    socket.onclose = (event) => {
+      if (opened) watcher.closed(event.code, event.reason);
+      finish(opened ? 'wrong-server' : 'failed');
+    };
   });
 }
 

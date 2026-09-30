@@ -59,6 +59,7 @@ npm run mock:server -- --scale 0.05
 | `--token <token>` | Exige `?token=<token>`, como a opção **Token** do componente |
 | `--read-only` | Recusa os comandos de controle, como a opção **Read only** do componente |
 | `--legacy` | Imita o componente 1.x: só protocolo 1, ignorando `?protocol=2` |
+| `--broken` | Imita um componente feito para outra versão do LiveSplit: fecha toda conexão com o código 1011 sem enviar o estado |
 
 ## Arquitetura
 

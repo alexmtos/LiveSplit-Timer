@@ -100,4 +100,16 @@ export interface CommandError {
   action: string | null;
 }
 
+/**
+ * Why a connection that opened never produced a timer state:
+ * `silent` nothing arrived, `error` the component answered with an error,
+ * `unknown` an unrecognised message arrived, `text` a plain-text reply
+ * (LiveSplit's built-in server), `closed` the server closed the connection.
+ */
+export interface ConnectionDiagnostic {
+  reason: 'silent' | 'error' | 'unknown' | 'text' | 'closed';
+  /** The error or the start of the message, when there is one. */
+  detail: string | null;
+}
+
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected';

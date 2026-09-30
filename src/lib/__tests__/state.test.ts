@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extractIcons, hasIcons, normalizeState, parseServerMessage, withCachedIcons } from '@/lib/state';
+import { GreetingWatcher, extractIcons, hasIcons, normalizeState, parseServerMessage, withCachedIcons } from '@/lib/state';
 
 // Shape produced by LiveSplit.WebSocketServer's JsonState.Create.
 const serverState = {
@@ -156,5 +156,56 @@ describe('protocol version 2', () => {
     const full = normalizeState(serverState)!;
     const renamed = normalizeState({ ...iconless, run: { ...iconless.run, segments: [{ ...iconless.run.segments[0], name: 'Other' }] } })!;
     expect(withCachedIcons(renamed, extractIcons(full)).run.segments[0].icon).toBeNull();
+  });
+});
+
+describe('GreetingWatcher (why no state arrived)', () => {
+  it('reports silence when nothing arrived', () => {
+    expect(new GreetingWatcher().diagnostic()).toEqual({ reason: 'silent', detail: null });
+  });
+
+  it('reports the component error answered to the state request', () => {
+    const watcher = new GreetingWatcher();
+    watcher.observe(JSON.stringify({ type: 'response', action: 'state', ok: false, error: { code: 'internal', message: 'Object reference not set' } }));
+    expect(watcher.diagnostic()).toEqual({ reason: 'error', detail: 'internal: Object reference not set' });
+  });
+
+  it('shows the start of an unrecognised message', () => {
+    const watcher = new GreetingWatcher();
+    watcher.observe(JSON.stringify({ type: 'hello', protocolVersion: 2, state: { run: {} } }));
+    expect(watcher.diagnostic().reason).toBe('unknown');
+    expect(watcher.diagnostic().detail).toContain('"type":"hello"');
+  });
+
+  it('prefers a plain-text reply, the signature of the built-in server', () => {
+    const watcher = new GreetingWatcher();
+    watcher.observe('{"x":1}');
+    watcher.observe('0.00');
+    expect(watcher.diagnostic()).toEqual({ reason: 'text', detail: '0.00' });
+  });
+
+  it('reports why the server closed the connection', () => {
+    const watcher = new GreetingWatcher();
+    watcher.closed(1011, 'Could not send the state. See LiveSplit\'s log in the Windows Event Viewer.');
+    expect(watcher.diagnostic()).toEqual({
+      reason: 'closed',
+      detail: '1011: Could not send the state. See LiveSplit\'s log in the Windows Event Viewer.',
+    });
+    const bare = new GreetingWatcher();
+    bare.closed(1006, '');
+    expect(bare.diagnostic()).toEqual({ reason: 'closed', detail: '1006' });
+  });
+
+  it('prefers an error reply over the close that follows it', () => {
+    const watcher = new GreetingWatcher();
+    watcher.observe(JSON.stringify({ type: 'response', action: 'state', ok: false, error: { code: 'internal', message: 'boom' } }));
+    watcher.closed(1011, 'bye');
+    expect(watcher.diagnostic().reason).toBe('error');
+  });
+
+  it('truncates long messages', () => {
+    const watcher = new GreetingWatcher();
+    watcher.observe(JSON.stringify({ big: 'x'.repeat(1000) }));
+    expect(watcher.diagnostic().detail?.length).toBe(301);
   });
 });
