@@ -9,7 +9,7 @@ import type { TranslationKey } from '@/lib/translations';
 
 /** Thin banner under the header for connection problems. */
 export function ConnectionNotice() {
-  const { status, isRetrying, protocolWarning, unauthorized } = useLiveSplit();
+  const { status, isRetrying, protocolWarning, diagnostic, unauthorized } = useLiveSplit();
   const { t } = useI18n();
 
   if (unauthorized) {
@@ -32,7 +32,7 @@ export function ConnectionNotice() {
     return (
       <div className="flex shrink-0 items-start gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-[11px] text-amber-200" role="status" data-export-ignore>
         <AlertTriangle size={12} className="mt-0.5 shrink-0" />
-        {t('connection_protocol_warning')}
+        {t(diagnostic?.reason === 'text' ? 'connection_protocol_warning' : 'connection_no_data')}
       </div>
     );
   }

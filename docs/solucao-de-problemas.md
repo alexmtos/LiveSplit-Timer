@@ -28,9 +28,24 @@ Com o componente 2.x, o app mostra por alguns segundos o motivo quando o LiveSpl
 
 ## O app conecta, mas não mostra dados
 
-O app exibe um aviso amarelo quando a conexão abre, mas nenhum estado do timer chega em cerca de 8 segundos.
+O app mostra um aviso amarelo quando a conexão abre, mas nenhum estado do timer chega em cerca de 8 segundos. Abra o painel de configurações: a seção **Conexão** explica o que aconteceu e mostra o que o servidor enviou. **Testar & Salvar** repete o diagnóstico.
 
-Isso quase sempre significa que o endereço aponta para o servidor embutido do LiveSplit (*Control → Start TCP Server* ou *Start WebSocket Server*, normalmente na porta 16834), e não para o componente LiveSplit WebSocket Server. Instale o componente e use a porta dele. Veja o [início rápido](../README.md#início-rápido).
+| O painel diz | Causa provável | O que fazer |
+|--------------|----------------|-------------|
+| O servidor não enviou nenhuma mensagem | O componente 2.x aceitou a conexão, mas falhou ao montar o estado da run. | Veja o erro no log do LiveSplit (*Visualizador de Eventos do Windows → Logs de Aplicativos e Serviços → LiveSplit*) e reinicie o servidor do componente. |
+| O LiveSplit WebSocket Server respondeu com um erro | O componente recusou enviar o estado; o código e a mensagem aparecem abaixo do aviso. | Reinicie o servidor do componente. Se o erro continuar, reporte-o no repositório do componente com a mensagem exibida. |
+| O servidor enviou uma mensagem que o app não reconhece | A porta é de outro programa, ou o formato do estado mudou no componente. | Confira a porta. O início da mensagem aparece abaixo do aviso. |
+| Este app usa o componente LiveSplit.WebSocketServer, não o servidor embutido | O endereço aponta para o servidor embutido do LiveSplit (*Control → Start TCP Server* ou *Start WebSocket Server*, normalmente na porta 16834). | Instale o componente e use a porta dele. Veja o [início rápido](../README.md#início-rápido). |
+
+Para ver as mensagens brutas, abra o console do navegador (F12) na página do app e rode:
+
+```js
+const ws = new WebSocket('ws://localhost:15721/?protocol=2');
+ws.onmessage = (e) => console.log(e.data);
+ws.onopen = () => setTimeout(() => ws.send('state'), 2000);
+```
+
+Se o componente exigir token, acrescente `&token=<token>` ao endereço.
 
 ## A conexão funciona no computador, mas não pela internet ou por HTTPS
 

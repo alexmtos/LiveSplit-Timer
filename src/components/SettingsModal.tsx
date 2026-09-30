@@ -11,7 +11,7 @@ import { buildOverlayUrl } from '@/lib/settings';
 import { THEME_COLORS } from '@/lib/themes';
 import { LANGUAGE_OPTIONS, type TranslationKey } from '@/lib/translations';
 import { cn } from '@/lib/utils';
-import { OVERLAY_SECTIONS, type Settings } from '@/types';
+import { OVERLAY_SECTIONS, type ConnectionDiagnostic, type Settings } from '@/types';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
 const CONFIRM_WINDOW_MS = 3_000;
@@ -215,15 +215,41 @@ function SettingRow({
 
 type FormResult = 'idle' | 'testing' | 'invalid' | TestResult;
 
+const DIAGNOSTIC_TEXT: Record<ConnectionDiagnostic['reason'], TranslationKey> = {
+  silent: 'diag_silent',
+  error: 'diag_error',
+  unknown: 'diag_unknown',
+  text: 'connection_protocol_warning',
+};
+
+/** Explains a connection that opened but never produced a timer state, with what arrived instead. */
+function DiagnosticNotice({ diagnostic }: { diagnostic: ConnectionDiagnostic }) {
+  const { t } = useI18n();
+  return (
+    <div className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200" role="status">
+      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+      <div className="min-w-0 space-y-2">
+        <p>{t(DIAGNOSTIC_TEXT[diagnostic.reason])}</p>
+        {diagnostic.detail && (
+          <code className="block max-h-32 overflow-auto whitespace-pre-wrap break-all rounded bg-black/40 p-2 font-mono text-[11px] text-white/80">
+            {diagnostic.detail}
+          </code>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ConnectionSection() {
   const { settings, updateSettings } = useSettings();
-  const { status, protocolWarning, unauthorized, server } = useLiveSplit();
+  const { status, diagnostic, unauthorized, server } = useLiveSplit();
   const { t } = useI18n();
   const initial = parseWsUrl(settings.wsUrl);
   const [host, setHost] = useState(initial.host);
   const [port, setPort] = useState(initial.port);
   const [token, setToken] = useState(settings.token);
   const [result, setResult] = useState<FormResult>('idle');
+  const [testDiagnostic, setTestDiagnostic] = useState<ConnectionDiagnostic | null>(null);
   const [pageProtocol, setPageProtocol] = useState('');
 
   useEffect(() => {
@@ -244,7 +270,8 @@ function ConnectionSection() {
     const saved = parseWsUrl(url);
     setHost(saved.host);
     setPort(saved.port);
-    setResult(outcome);
+    setResult(outcome.result);
+    setTestDiagnostic(outcome.diagnostic);
   };
   const edit = (setter: (value: string) => void) => (value: string) => {
     setter(value);
@@ -263,7 +290,7 @@ function ConnectionSection() {
             className={cn(
               'h-2 w-2 rounded-full transition-all',
               status === 'connected'
-                ? protocolWarning
+                ? diagnostic
                   ? 'bg-amber-500'
                   : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'
                 : status === 'disconnected'
@@ -324,7 +351,6 @@ function ConnectionSection() {
       {result === 'failed' && <p className="text-xs text-red-400">{t('connection_test_failed')}</p>}
       {result === 'invalid' && <p className="text-xs text-red-400">{t('connection_invalid')}</p>}
       {result === 'unauthorized' && <p className="text-xs text-red-400">{t('connection_unauthorized')}</p>}
-      {result === 'wrong-server' && <p className="text-xs text-amber-300">{t('connection_protocol_warning')}</p>}
 
       {server && (
         <p className="text-[11px] text-[var(--text-dim)]">
@@ -351,11 +377,10 @@ function ConnectionSection() {
         </p>
       )}
 
-      {protocolWarning && (
-        <p className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-          {t('connection_protocol_warning')}
-        </p>
+      {result === 'wrong-server' && testDiagnostic ? (
+        <DiagnosticNotice diagnostic={testDiagnostic} />
+      ) : (
+        diagnostic && <DiagnosticNotice diagnostic={diagnostic} />
       )}
       {isBlockedByMixedContent(settings.wsUrl, pageProtocol) && (
         <p className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">

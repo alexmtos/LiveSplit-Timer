@@ -3,6 +3,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CommandError,
+  ConnectionDiagnostic,
   ConnectionStatus,
   LiveSplitCommand,
   LiveSplitState,
@@ -12,7 +13,7 @@ import type {
 } from '@/types';
 import { useSettings } from './SettingsContext';
 import { connectionUrl } from '@/lib/connection';
-import { extractIcons, hasIcons, parseServerMessage, withCachedIcons, type IconCache } from '@/lib/state';
+import { GreetingWatcher, extractIcons, hasIcons, withCachedIcons, type IconCache } from '@/lib/state';
 import { resolveComparison, type TimeAnchor } from '@/lib/run';
 import {
   fetchWorldRecord,
@@ -66,8 +67,10 @@ interface LiveSplitContextType {
   isConnecting: boolean;
   /** The connection failed or dropped and the app is retrying in the background. */
   isRetrying: boolean;
-  /** Connected, but the server is not LiveSplit.WebSocketServer (e.g. LiveSplit's built-in server). */
+  /** Connected, but no timer state arrived (wrong server, or the component failed to build it). */
   protocolWarning: boolean;
+  /** When `protocolWarning` is set: what arrived instead of a state. */
+  diagnostic: ConnectionDiagnostic | null;
   /** The component refused the token (protocol 2). */
   unauthorized: boolean;
   /** Set once connected: protocol version and, for protocol 2, component details. */
@@ -90,6 +93,7 @@ interface ConnectionState {
   source: string;
   status: ConnectionStatus;
   protocolWarning: boolean;
+  diagnostic: ConnectionDiagnostic | null;
   unauthorized: boolean;
   /** Consecutive failed attempts; > 0 while retrying after a failure. */
   failures: number;
@@ -107,6 +111,7 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
     source: '',
     status: 'idle',
     protocolWarning: false,
+    diagnostic: null,
     unauthorized: false,
     failures: 0,
     server: null,
@@ -142,6 +147,8 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
     let icons: IconCache | null = null;
     /** The socket whose token the server refused. */
     let refusedSocket: WebSocket | null = null;
+    /** What arrived before the first state on the current socket, for the "no data" diagnostic. */
+    let greeting = new GreetingWatcher();
     const timers = new Set<ReturnType<typeof setTimeout>>();
 
     const later = (fn: () => void, ms: number) => {
@@ -151,12 +158,16 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       }, ms);
       timers.add(id);
     };
-    const update = (status: ConnectionStatus, flags: { protocolWarning?: boolean; unauthorized?: boolean } = {}) => {
+    const update = (
+      status: ConnectionStatus,
+      flags: { diagnostic?: ConnectionDiagnostic; unauthorized?: boolean } = {},
+    ) => {
       if (disposed) return;
       setConnection({
         source,
         status,
-        protocolWarning: flags.protocolWarning ?? false,
+        protocolWarning: !!flags.diagnostic,
+        diagnostic: flags.diagnostic ?? null,
         unauthorized: flags.unauthorized ?? false,
         failures: attempt,
         server,
@@ -189,10 +200,10 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
 
     const handleMessage = (current: WebSocket, data: unknown) => {
       lastMessageAt = performance.now();
-      const message = parseServerMessage(data);
+      const message = greeting.observe(data);
       switch (message.kind) {
         case 'text':
-          update('connected', { protocolWarning: true });
+          update('connected', { diagnostic: greeting.diagnostic() });
           return;
         case 'response':
           if (message.error?.code === 'unauthorized') {
@@ -250,6 +261,7 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       // Keep showing a refused token while retrying, until a connection succeeds.
       update('connecting', { unauthorized: socket !== null && refusedSocket === socket });
       gotState = false;
+      greeting = new GreetingWatcher();
       server = null;
       icons = null;
       protocolRef.current = 1;
@@ -279,7 +291,9 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
           if (gotState || refused() || current.readyState !== WebSocket.OPEN) return;
           current.send('state');
           later(() => {
-            if (!gotState && !refused() && current.readyState === WebSocket.OPEN) update('connected', { protocolWarning: true });
+            if (!gotState && !refused() && current.readyState === WebSocket.OPEN) {
+              update('connected', { diagnostic: greeting.diagnostic() });
+            }
           }, FIRST_STATE_TIMEOUT_MS);
         }, FIRST_STATE_TIMEOUT_MS);
       };
@@ -352,6 +366,7 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       isConnecting: status === 'connecting',
       isRetrying,
       protocolWarning: !!current?.protocolWarning,
+      diagnostic: current?.diagnostic ?? null,
       unauthorized: !!current?.unauthorized,
       server,
       state,
