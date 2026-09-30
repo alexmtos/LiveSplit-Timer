@@ -184,6 +184,25 @@ describe('GreetingWatcher (why no state arrived)', () => {
     expect(watcher.diagnostic()).toEqual({ reason: 'text', detail: '0.00' });
   });
 
+  it('reports why the server closed the connection', () => {
+    const watcher = new GreetingWatcher();
+    watcher.closed(1011, 'Could not send the state. See LiveSplit\'s log in the Windows Event Viewer.');
+    expect(watcher.diagnostic()).toEqual({
+      reason: 'closed',
+      detail: '1011: Could not send the state. See LiveSplit\'s log in the Windows Event Viewer.',
+    });
+    const bare = new GreetingWatcher();
+    bare.closed(1006, '');
+    expect(bare.diagnostic()).toEqual({ reason: 'closed', detail: '1006' });
+  });
+
+  it('prefers an error reply over the close that follows it', () => {
+    const watcher = new GreetingWatcher();
+    watcher.observe(JSON.stringify({ type: 'response', action: 'state', ok: false, error: { code: 'internal', message: 'boom' } }));
+    watcher.closed(1011, 'bye');
+    expect(watcher.diagnostic().reason).toBe('error');
+  });
+
   it('truncates long messages', () => {
     const watcher = new GreetingWatcher();
     watcher.observe(JSON.stringify({ big: 'x'.repeat(1000) }));

@@ -220,6 +220,7 @@ const DIAGNOSTIC_TEXT: Record<ConnectionDiagnostic['reason'], TranslationKey> = 
   error: 'diag_error',
   unknown: 'diag_unknown',
   text: 'connection_protocol_warning',
+  closed: 'diag_closed',
 };
 
 /** Explains a connection that opened but never produced a timer state, with what arrived instead. */

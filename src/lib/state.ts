@@ -228,6 +228,7 @@ export class GreetingWatcher {
   private error: string | null = null;
   private unknown: string | null = null;
   private text: string | null = null;
+  private close: string | null = null;
 
   /** Feeds a raw message; returns the parsed message for further handling. */
   observe(data: unknown): ServerMessage {
@@ -242,9 +243,15 @@ export class GreetingWatcher {
     return message;
   }
 
+  /** Records that the server closed the connection (component 2.x gives the reason when it cannot send the state). */
+  closed(code: number, reason: string) {
+    this.close = reason ? `${code}: ${messageSnippet(reason)}` : String(code);
+  }
+
   diagnostic(): ConnectionDiagnostic {
     if (this.text !== null) return { reason: 'text', detail: this.text };
     if (this.error !== null) return { reason: 'error', detail: this.error };
+    if (this.close !== null) return { reason: 'closed', detail: this.close };
     if (this.unknown !== null) return { reason: 'unknown', detail: this.unknown };
     return { reason: 'silent', detail: null };
   }

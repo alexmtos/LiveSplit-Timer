@@ -7,7 +7,7 @@
  * See docs/PROTOCOL.md in alexmtos/LiveSplit.WebSocketServer.
  *
  *   npm run mock:server -- [--port 15721] [--scale 1] [--game-time] [--src]
- *                          [--token <token>] [--read-only] [--legacy]
+ *                          [--token <token>] [--read-only] [--legacy] [--broken]
  *
  * --scale      multiplies every PB/best segment time (e.g. 0.05 for a quick run).
  * --game-time  starts with GameTime as the timing method (game time runs 3%
@@ -17,6 +17,8 @@
  * --token      requires ?token=<token>, like the component's Token setting.
  * --read-only  refuses control actions, like the component's Read only setting.
  * --legacy     behaves like component 1.x: protocol 1 only, ?protocol=2 ignored.
+ * --broken     cannot build the greeting, like a component built for another
+ *              LiveSplit version: closes every connection with 1011.
  */
 import { WebSocketServer } from 'ws';
 
@@ -30,6 +32,7 @@ const scale = Number(option('scale', '1'));
 const token = option('token', '');
 const readOnly = args.includes('--read-only');
 const legacy = args.includes('--legacy');
+const broken = args.includes('--broken');
 const speedrunMetadata = args.includes('--src')
   ? { gameId: 'o1y9wo6q', categoryId: 'n2y1y72o', regionId: null, platformId: null, emulator: false, variables: { e8m7em86: 'N64' } }
   : { gameId: null, categoryId: null, regionId: null, platformId: null, emulator: false, variables: {} };
@@ -277,6 +280,10 @@ wss.on('connection', (socket, request) => {
     socket.close(1008, 'Unauthorized');
     return;
   }
+  if (broken) {
+    socket.close(1011, "Could not send the state. See LiveSplit's log in the Windows Event Viewer.");
+    return;
+  }
   socket.protocol2 = !legacy && query.get('protocol') === '2';
   socket.send(JSON.stringify(socket.protocol2 ? hello() : { open: { response: 'success' }, state: state({ includeIcons: true }) }));
   socket.greeted = true;
@@ -306,5 +313,5 @@ wss.on('connection', (socket, request) => {
 setInterval(() => broadcast('refresh'), 15_000);
 console.log(
   `Mock LiveSplit.WebSocketServer on ws://localhost:${port} (${legacy ? 'component 1.x, protocol 1' : 'component 2.x, protocols 1 and 2'}` +
-    `, scale ${scale}${timer.timingMethod === 'GameTime' ? ', game time' : ''}${token ? ', token' : ''}${readOnly ? ', read only' : ''})`,
+    `, scale ${scale}${timer.timingMethod === 'GameTime' ? ', game time' : ''}${token ? ', token' : ''}${readOnly ? ', read only' : ''}${broken ? ', broken greeting' : ''})`,
 );

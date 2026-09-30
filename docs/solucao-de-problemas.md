@@ -32,7 +32,8 @@ O app mostra um aviso amarelo quando a conexão abre, mas nenhum estado do timer
 
 | O painel diz | Causa provável | O que fazer |
 |--------------|----------------|-------------|
-| O servidor não enviou nenhuma mensagem | A conexão abriu, mas o componente não respondeu nem ao pedido de estado. Costuma indicar que o LiveSplit carregou outra versão do componente ou que o componente travou. | Siga os passos de [O servidor não envia nenhuma mensagem](#o-servidor-não-envia-nenhuma-mensagem). |
+| O servidor não enviou nenhuma mensagem | A conexão abriu, mas o componente não respondeu nem ao pedido de estado. A causa mais comum é uma DLL do componente feita para outra versão do LiveSplit. | Siga os passos de [O servidor não envia nenhuma mensagem](#o-servidor-não-envia-nenhuma-mensagem). |
+| O LiveSplit WebSocket Server fechou a conexão sem enviar o estado | O componente não conseguiu montar o estado e fechou a conexão; o código e o motivo aparecem abaixo do aviso. | Veja o erro completo no Visualizador de Eventos (*Logs do Windows → Aplicativo*, fonte **LiveSplit**) e siga os passos de [O servidor não envia nenhuma mensagem](#o-servidor-não-envia-nenhuma-mensagem). |
 | O LiveSplit WebSocket Server respondeu com um erro | O componente recusou enviar o estado; o código e a mensagem aparecem abaixo do aviso. | Reinicie o servidor do componente. Se o erro continuar, reporte-o no repositório do componente com a mensagem exibida. |
 | O servidor enviou uma mensagem que o app não reconhece | A porta é de outro programa, ou o formato do estado mudou no componente. | Confira a porta. O início da mensagem aparece abaixo do aviso. |
 | Este app usa o componente LiveSplit.WebSocketServer, não o servidor embutido | O endereço aponta para o servidor embutido do LiveSplit (*Control → Start TCP Server* ou *Start WebSocket Server*, normalmente na porta 16834). | Instale o componente e use a porta dele. Veja o [início rápido](../README.md#início-rápido). |
@@ -53,10 +54,11 @@ Se o componente exigir token, acrescente `&token=<token>` ao endereço. Espere c
 
 A conexão abre, mas o componente não envia o estado inicial nem responde ao pedido de estado. O componente 2.x sempre responde, mesmo com um erro, então o problema está no lado do LiveSplit.
 
-1. Confira a versão carregada. Clique com o botão direito no LiveSplit: o menu *Control* deve mostrar **Start WebSocket Server (JSON)**, e as configurações do componente em *Edit Layout* devem ter os campos **Token** e **Read only**. Se houver cópias antigas da DLL do componente na pasta `Components`, remova-as e deixe só a 2.x.
-2. Teste o protocolo 1. No console, rode o mesmo código com `ws://localhost:15721/` (sem `?protocol=2`). Se chegar uma mensagem com `open` e `state`, o LiveSplit está rodando um componente 1.x.
-3. Procure erros do LiveSplit. Abra o *Visualizador de Eventos* do Windows, vá em *Logs do Windows → Aplicativo* e use *Filtrar Log Atual* com a fonte **LiveSplit**. O LiveSplit registra apenas avisos e erros.
-4. Feche o LiveSplit por completo e abra de novo. O componente lê o timer pela janela principal do LiveSplit, então nada é enviado enquanto ela estiver travada.
+1. Confira se a DLL do componente foi feita para a sua versão do LiveSplit (veja a versão em *About*). O componente usa bibliotecas que vêm com o LiveSplit, e uma DLL feita para uma versão mais nova aceita conexões, mas não consegue enviar nada. Baixe do workflow *Build* do componente o artefato `LiveSplit.WebSocketServer-for-LiveSplit-<versão>` com a sua versão ou uma anterior, e substitua a DLL na pasta `Components`. As versões mais recentes do componente mostram um erro e não iniciam o servidor nesse caso.
+2. Confira a versão do componente. Clique com o botão direito no LiveSplit: o menu *Control* deve mostrar **Start WebSocket Server (JSON)**, e as configurações do componente em *Edit Layout* devem ter os campos **Token** e **Read only**. Se houver cópias antigas da DLL do componente na pasta `Components`, remova-as e deixe só a 2.x.
+3. Teste o protocolo 1. No console, rode o mesmo código com `ws://localhost:15721/` (sem `?protocol=2`). Se chegar uma mensagem com `open` e `state`, o LiveSplit está rodando um componente 1.x.
+4. Procure erros do LiveSplit. Abra o *Visualizador de Eventos* do Windows, vá em *Logs do Windows → Aplicativo* e use *Filtrar Log Atual* com a fonte **LiveSplit**. O LiveSplit registra apenas avisos e erros.
+5. Feche o LiveSplit por completo e abra de novo. O componente lê o timer pela janela principal do LiveSplit, então nada é enviado enquanto ela estiver travada.
 
 > **Nota:** a pasta *Logs de Aplicativos e Serviços* não tem uma entrada do LiveSplit. Os erros ficam no log *Aplicativo*.
 

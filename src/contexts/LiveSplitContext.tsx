@@ -149,6 +149,8 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
     let refusedSocket: WebSocket | null = null;
     /** What arrived before the first state on the current socket, for the "no data" diagnostic. */
     let greeting = new GreetingWatcher();
+    /** Why the server closed the last connection before sending a state; kept while retrying. */
+    let closedEarly: ConnectionDiagnostic | undefined;
     const timers = new Set<ReturnType<typeof setTimeout>>();
 
     const later = (fn: () => void, ms: number) => {
@@ -236,6 +238,7 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
         case 'state': {
           if (!gotState) {
             gotState = true;
+            closedEarly = undefined;
             // Only a working session resets the backoff: a server that accepts and
             // immediately drops connections must not be retried every second.
             attempt = 0;
@@ -259,7 +262,7 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
     function open() {
       if (disposed) return;
       // Keep showing a refused token while retrying, until a connection succeeds.
-      update('connecting', { unauthorized: socket !== null && refusedSocket === socket });
+      update('connecting', { unauthorized: socket !== null && refusedSocket === socket, diagnostic: closedEarly });
       gotState = false;
       greeting = new GreetingWatcher();
       server = null;
@@ -277,14 +280,16 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       socket = current;
       socketRef.current = current;
       const refused = () => refusedSocket === current;
+      let opened = false;
 
       later(() => {
         if (current.readyState === WebSocket.CONNECTING) current.close();
       }, CONNECT_TIMEOUT_MS);
 
       current.onopen = () => {
+        opened = true;
         lastMessageAt = performance.now();
-        update('connected');
+        update('connected', { diagnostic: closedEarly });
         // The server sends the state on connect; if it doesn't, ask once and
         // then warn that this is probably not LiveSplit.WebSocketServer.
         later(() => {
@@ -298,10 +303,14 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
         }, FIRST_STATE_TIMEOUT_MS);
       };
       current.onmessage = (event) => handleMessage(current, event.data);
-      current.onclose = () => {
+      current.onclose = (event) => {
         if (socketRef.current === current) socketRef.current = null;
         if (disposed) return;
-        update('disconnected', { unauthorized: refused() });
+        if (opened && !gotState && !refused()) {
+          greeting.closed(event.code, event.reason);
+          closedEarly = greeting.diagnostic();
+        }
+        update('disconnected', { unauthorized: refused(), diagnostic: closedEarly });
         scheduleReconnect();
       };
     }

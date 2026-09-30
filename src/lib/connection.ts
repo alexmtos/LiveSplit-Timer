@@ -113,7 +113,10 @@ export function testConnection(url: string, token = '', timeoutMs = 5000): Promi
       else if (message.kind === 'text') finish('wrong-server');
     };
     socket.onerror = () => finish('failed');
-    socket.onclose = () => finish(opened ? 'wrong-server' : 'failed');
+    socket.onclose = (event) => {
+      if (opened) watcher.closed(event.code, event.reason);
+      finish(opened ? 'wrong-server' : 'failed');
+    };
   });
 }
 

@@ -22,17 +22,19 @@ export function ConnectionNotice() {
   }
   if (isRetrying) {
     return (
-      <div className="flex shrink-0 items-center gap-2 border-b border-red-500/20 bg-red-500/10 px-4 py-1.5 text-[11px] text-red-300" role="status" data-export-ignore>
-        <WifiOff size={12} className="shrink-0" />
-        {t('connection_disconnected')} — {t('connection_connecting')}
+      <div className="flex shrink-0 items-start gap-2 border-b border-red-500/20 bg-red-500/10 px-4 py-1.5 text-[11px] text-red-300" role="status" data-export-ignore>
+        <WifiOff size={12} className="mt-0.5 shrink-0" />
+        {diagnostic?.reason === 'closed' ? t('connection_closed_early') : `${t('connection_disconnected')} — ${t('connection_connecting')}`}
       </div>
     );
   }
   if (status === 'connected' && protocolWarning) {
+    const key: TranslationKey =
+      diagnostic?.reason === 'text' ? 'connection_protocol_warning' : diagnostic?.reason === 'closed' ? 'connection_closed_early' : 'connection_no_data';
     return (
       <div className="flex shrink-0 items-start gap-2 border-b border-amber-500/20 bg-amber-500/10 px-4 py-1.5 text-[11px] text-amber-200" role="status" data-export-ignore>
         <AlertTriangle size={12} className="mt-0.5 shrink-0" />
-        {t(diagnostic?.reason === 'text' ? 'connection_protocol_warning' : 'connection_no_data')}
+        {t(key)}
       </div>
     );
   }
