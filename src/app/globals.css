@@ -4,13 +4,24 @@
 
 :root {
   --bg-main: #050505;
+  --page-bg: var(--bg-main);
   --text-dim: #888;
   --theme-accent: #00a2ff;
   --theme-accent-rgb: 0, 162, 255;
+  color-scheme: dark;
+}
+
+/* Both elements need the background: in transparent mode OBS must see through the whole page. */
+html,
+body {
+  background: var(--page-bg);
 }
 
 body {
   color: white;
-  background: var(--bg-main);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }

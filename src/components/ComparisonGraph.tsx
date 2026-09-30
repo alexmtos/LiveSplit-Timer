@@ -1,167 +1,165 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useSettings } from '@/contexts/SettingsContext';
-import { useTimer, formatDelta } from '@/hooks/useTimer';
+import { useRunClock } from '@/hooks/useRunClock';
+import { STATUS_HEX } from '@/lib/colors';
+import { liveDelta, splitDelta, splitStatus } from '@/lib/run';
+import { formatDelta } from '@/lib/time';
+import type { LiveSplitState, TimingMethod } from '@/types';
+
+interface GraphPoint {
+  delta: number;
+  color: string;
+  isLive?: boolean;
+  /** Splits without a delta (skipped) sit between this point and the previous one. */
+  afterGap?: boolean;
+}
+
+function buildPoints(state: LiveSplitState, currentTime: number | null, comparison: string, method: TimingMethod) {
+  if (state.timerState === 'NotRunning') return [];
+  const segments = state.run.segments;
+  const points: GraphPoint[] = [{ delta: 0, color: STATUS_HEX.neutral }];
+  let gap = false;
+  for (let i = 0; i < Math.min(state.currentSplitIndex, segments.length); i++) {
+    const delta = splitDelta(segments[i], comparison, method);
+    if (delta === null) {
+      gap = true;
+      continue;
+    }
+    points.push({ delta, color: STATUS_HEX[splitStatus(segments, i, comparison, method)], afterGap: gap });
+    gap = false;
+  }
+  const live = liveDelta(state, currentTime, comparison, method);
+  if (live !== null) points.push({ delta: live, color: '#ffffff', isLive: true, afterGap: gap });
+  return points;
+}
+
+const AHEAD = '#22c55e';
+const BEHIND = '#ef4444';
+
+function draw(canvas: HTMLCanvasElement, width: number, height: number, points: GraphPoint[]) {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+
+  const padding = 15;
+  const paddingTop = 12;
+  const footerHeight = 22;
+  const graphHeight = height - paddingTop - footerHeight;
+  const zeroY = paddingTop + graphHeight / 2;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(padding, zeroY);
+  ctx.lineTo(width - padding, zeroY);
+  ctx.stroke();
+
+  if (points.length < 2) return;
+
+  const maxDelta = Math.max(1000, ...points.map((p) => Math.abs(p.delta)));
+  const scale = (graphHeight / 2 - 6) / maxDelta;
+  const x = (i: number) => padding + (i * (width - padding * 2)) / (points.length - 1);
+  // Time lost goes up, time saved goes down (same orientation as before).
+  const y = (delta: number) => zeroY - delta * scale;
+
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1];
+    const b = points[i];
+    ctx.fillStyle = b.delta <= 0 ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(x(i - 1), zeroY);
+    ctx.lineTo(x(i - 1), y(a.delta));
+    ctx.lineTo(x(i), y(b.delta));
+    ctx.lineTo(x(i), zeroY);
+    ctx.fill();
+
+    ctx.strokeStyle = b.isLive ? 'rgba(255,255,255,0.7)' : b.delta <= 0 ? AHEAD : BEHIND;
+    ctx.lineWidth = 2;
+    ctx.setLineDash(b.afterGap || b.isLive ? [3, 3] : []);
+    ctx.beginPath();
+    ctx.moveTo(x(i - 1), y(a.delta));
+    ctx.lineTo(x(i), y(b.delta));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  points.forEach((p, i) => {
+    if (i === 0) return;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(x(i), y(p.delta), p.isLive ? 4 : 3, 0, Math.PI * 2);
+    ctx.fill();
+    if (p.isLive) {
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x(i), y(p.delta), 7, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  });
+
+  const last = points[points.length - 1];
+  const text = formatDelta(last.delta);
+  ctx.font = 'bold 10px ui-monospace, monospace';
+  const boxWidth = ctx.measureText(text).width + 8;
+  const boxHeight = 14;
+  const boxX = Math.min(width - boxWidth - 5, Math.max(5, x(points.length - 1) - boxWidth / 2));
+  const boxY = height - footerHeight + 4;
+  const color = last.isLive ? '#ffffff' : last.color;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+  ctx.strokeStyle = color;
+  ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, boxX + boxWidth / 2, boxY + boxHeight / 2 + 0.5);
+}
 
 export function ComparisonGraph() {
-  const { runData } = useLiveSplit();
+  const { state, comparison, timingMethod } = useLiveSplit();
   const { settings } = useSettings();
-  const { time: currentTime } = useTimer();
+  // 10 fps is plenty for the live point and keeps the canvas work cheap.
+  const { currentTime } = useRunClock(100);
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [settings.showGraph]);
+
+  const points = state ? buildPoints(state, currentTime, comparison, timingMethod) : [];
+  const signature = JSON.stringify(points);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !runData?.run?.segments) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-
-    const width = rect.width;
-    const height = rect.height;
-    const padding = 15;
-    const paddingTop = 20;
-    const footerHeight = 28;
-    const graphHeight = height - paddingTop - footerHeight - 5;
-    const zeroY = paddingTop + graphHeight / 2;
-
-    ctx.clearRect(0, 0, width, height);
-
-    const segments = runData.run.segments;
-    const currentIndex = runData.currentSplitIndex ?? -1;
-
-    // Collect data points
-    const dataPoints: { delta: number | null, isSkipped: boolean, isRealTime: boolean }[] = [];
-
-    segments.forEach((seg, i) => {
-      const pb = seg.comparisons?.['Personal Best']?.realTime;
-      const act = seg.splitTime?.realTime;
-      const isSkipped = i < currentIndex && typeof act !== 'number';
-
-      if (typeof act === 'number' && typeof pb === 'number') {
-        dataPoints.push({ delta: act - pb, isSkipped: false, isRealTime: false });
-      } else if (isSkipped) {
-        dataPoints.push({ delta: null, isSkipped: true, isRealTime: false });
-      }
-    });
-
-    // Add real-time point
-    if (runData.timerState === 'Running' || runData.timerState === 'Paused') {
-       const currentSegment = segments[Math.max(0, currentIndex)];
-       const pb = currentSegment?.comparisons?.['Personal Best']?.realTime;
-       if (typeof pb === 'number') {
-         dataPoints.push({ delta: currentTime - pb, isSkipped: false, isRealTime: true });
-       }
-    }
-
-    if (dataPoints.length === 0) return;
-
-    // Scaling
-    const deltas = dataPoints.filter(p => p.delta !== null).map(p => p.delta as number);
-    const maxDelta = deltas.length > 0 ? Math.max(...deltas.map(Math.abs), 1000) : 1000;
-    const scale = graphHeight / (maxDelta * 2.5);
-
-    const getX = (i: number) => padding + (i * (width - padding * 2)) / Math.max(dataPoints.length - 1, 1);
-    const getY = (delta: number | null) => delta === null ? zeroY : zeroY - (delta * scale);
-
-    // Draw background grid/zero line
-    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(padding, zeroY);
-    ctx.lineTo(width - padding, zeroY);
-    ctx.stroke();
-
-    // Draw graph lines & areas
-    ctx.lineWidth = 2;
-    for (let i = 0; i < dataPoints.length - 1; i++) {
-      const p1 = dataPoints[i];
-      const p2 = dataPoints[i+1];
-      const x1 = getX(i);
-      const x2 = getX(i+1);
-      const y1 = getY(p1.delta);
-      const y2 = getY(p2.delta);
-
-      if (p2.delta !== null) {
-        ctx.fillStyle = p2.delta < 0 ? 'rgba(64, 255, 64, 0.1)' : 'rgba(255, 64, 64, 0.1)';
-        ctx.beginPath();
-        ctx.moveTo(x1, zeroY);
-        ctx.lineTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(x2, zeroY);
-        ctx.fill();
-
-        ctx.strokeStyle = p2.delta < 0 ? '#40ff40' : '#ff4040';
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-      } else {
-        ctx.strokeStyle = '#888';
-        ctx.setLineDash([2, 2]);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    }
-
-    // Draw points & boxes
-    dataPoints.forEach((p, i) => {
-      if (p.delta === null) return;
-      const x = getX(i);
-      const y = getY(p.delta);
-
-      // Point
-      ctx.fillStyle = p.isRealTime ? '#fff' : (p.delta < 0 ? '#40ff40' : '#ff4040');
-      ctx.beginPath();
-      ctx.arc(x, y, p.isRealTime ? 4 : 3, 0, Math.PI * 2);
-      ctx.fill();
-      if(p.isRealTime) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.arc(x, y, 7, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      // Final point or real-time point box
-      if (i === dataPoints.length - 1) {
-        const text = formatDelta(p.delta);
-        ctx.font = 'bold 10px monospace';
-        const metrics = ctx.measureText(text);
-        const bw = metrics.width + 6;
-        const bh = 14;
-        const bx = Math.min(width - bw - 5, Math.max(5, x - bw / 2));
-        const by = height - footerHeight;
-
-        ctx.fillStyle = '#000';
-        ctx.fillRect(bx, by, bw, bh);
-        ctx.strokeStyle = p.delta < 0 ? '#40ff40' : '#ff4040';
-        if (p.isRealTime) ctx.strokeStyle = '#fff';
-        ctx.strokeRect(bx, by, bw, bh);
-        ctx.fillStyle = ctx.strokeStyle;
-        ctx.textAlign = 'center';
-        ctx.fillText(text, bx + bw / 2, by + 11);
-      }
-    });
-
-  }, [runData, settings.showGraph, currentTime]);
+    if (!canvas || size.width === 0 || size.height === 0) return;
+    draw(canvas, size.width, size.height, JSON.parse(signature) as GraphPoint[]);
+  }, [signature, size]);
 
   if (!settings.showGraph) return null;
 
   return (
     <div className="h-40 shrink-0 border-b border-white/10 bg-black/30 p-2">
-      <div className="relative h-full w-full overflow-hidden rounded-md border border-white/5 bg-black/40">
-        <canvas ref={canvasRef} className="h-full w-full cursor-crosshair" />
+      <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-md border border-white/5 bg-black/40">
+        <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden />
       </div>
     </div>
   );

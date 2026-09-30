@@ -1,137 +1,281 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
-import { RunData } from '@/types';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { ConnectionStatus, LiveSplitCommand, LiveSplitState, RunMetadata, TimingMethod } from '@/types';
 import { useSettings } from './SettingsContext';
+import { parseServerMessage } from '@/lib/state';
+import { resolveComparison, type TimeAnchor } from '@/lib/run';
+import {
+  fetchWorldRecord,
+  getCachedWorldRecord,
+  setCachedWorldRecord,
+  worldRecordKey,
+  type WorldRecord,
+} from '@/lib/speedrun';
+
+const CONNECT_TIMEOUT_MS = 5_000;
+const MAX_RETRY_DELAY_MS = 10_000;
+/** The server broadcasts every 15 s; after this long without traffic we ping it. */
+const IDLE_PING_MS = 20_000;
+/** ...and after this long we assume the connection is dead and reconnect. */
+const IDLE_RECONNECT_MS = 45_000;
+/** Time to wait for the first state before suspecting the wrong server. */
+const FIRST_STATE_TIMEOUT_MS = 4_000;
+/** Game time can pause without any event (load removal), so poll while it matters. */
+const GAME_TIME_SYNC_MS = 1_000;
+const WR_RETRY_MS = 60_000;
+
+export type WorldRecordStatus =
+  | { status: 'none' }
+  | { status: 'loading' }
+  | { status: 'error' }
+  | { status: 'ok'; record: WorldRecord | null };
+
+interface LiveSnapshot {
+  url: string;
+  state: LiveSplitState;
+  anchor: TimeAnchor;
+  /** performance.now() when the run entered "Ended"; guards against accidental resets. */
+  endedAt: number | null;
+}
 
 interface LiveSplitContextType {
-  runData: RunData | null;
+  status: ConnectionStatus;
   isConnected: boolean;
   isConnecting: boolean;
-  sendCommand: (command: string) => void;
-  bestPossibleTime: number | null;
-  predictedTime: number | null;
-  worldRecord: {
-    timeMs: number | null;
-    player: string | null;
-    url: string | null;
-  } | null;
+  /** The connection failed or dropped and the app is retrying in the background. */
+  isRetrying: boolean;
+  /** Connected, but the server is not LiveSplit.WebSocketServer (e.g. LiveSplit's built-in server). */
+  protocolWarning: boolean;
+  state: LiveSplitState | null;
+  anchor: TimeAnchor | null;
+  endedAt: number | null;
+  timingMethod: TimingMethod;
+  comparison: string;
+  sendCommand: (command: LiveSplitCommand) => boolean;
+  worldRecord: WorldRecordStatus;
 }
 
 const LiveSplitContext = createContext<LiveSplitContextType | undefined>(undefined);
 
 export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
-  const { settings } = useSettings();
-  const [runData, setRunData] = useState<RunData | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [bestPossibleTime, setBestPossibleTime] = useState<number | null>(null);
-  const [predictedTime, setPredictedTime] = useState<number | null>(null);
-  const [worldRecord, setWorldRecord] = useState<LiveSplitContextType['worldRecord']>(null);
+  const { settings, isLoaded } = useSettings();
+  const url = settings.wsUrl;
 
-  const ws = useRef<WebSocket | null>(null);
-  const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
-  const lastCommand = useRef<string | null>(null);
+  const [connection, setConnection] = useState<{
+    url: string;
+    status: ConnectionStatus;
+    protocolWarning: boolean;
+    /** Consecutive failed attempts; > 0 while retrying after a failure. */
+    failures: number;
+  }>({ url: '', status: 'idle', protocolWarning: false, failures: 0 });
+  const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null);
+  const socketRef = useRef<WebSocket | null>(null);
+  const metadataRef = useRef<RunMetadata | null>(null);
 
-  const fetchWorldRecord = useCallback(async (gameId: string, categoryId: string) => {
-    try {
-      const response = await fetch(`https://www.speedrun.com/api/v1/leaderboards/${gameId}/category/${categoryId}?top=1&embed=players`);
-      if (!response.ok) return;
-      const data = await response.json();
-      const run = data.data.runs[0];
-      if (!run) return;
-
-      const timeMs = parseISODuration(run.run.times.primary);
-      const player = data.data.players.data[0]?.names.international || 'Unknown';
-
-      setWorldRecord({
-        timeMs,
-        player,
-        url: run.run.weblink
-      });
-    } catch (e) {
-      console.error('Failed to fetch WR', e);
-    }
+  const sendCommand = useCallback((command: LiveSplitCommand) => {
+    const socket = socketRef.current;
+    if (socket?.readyState !== WebSocket.OPEN) return false;
+    socket.send(command);
+    return true;
   }, []);
-
-  const connect = useCallback(() => {
-    if (ws.current?.readyState === WebSocket.OPEN || ws.current?.readyState === WebSocket.CONNECTING) return;
-
-    setIsConnecting(true);
-    const socket = new WebSocket(settings.wsUrl);
-    ws.current = socket;
-
-    socket.onopen = () => {
-      setIsConnected(true);
-      setIsConnecting(false);
-      console.log('Connected to LiveSplit Server');
-    };
-
-    socket.onclose = () => {
-      setIsConnected(false);
-      setIsConnecting(false);
-      console.log('Disconnected from LiveSplit Server');
-      reconnectTimeout.current = setTimeout(connect, 3000);
-    };
-
-    socket.onerror = (error) => {
-      console.error('WebSocket Error:', error);
-      socket.close();
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const message = event.data.trim();
-
-        try {
-          const data = JSON.parse(message);
-          const timerData = data.state || data;
-          if (timerData && typeof timerData === 'object') {
-            setRunData(timerData);
-
-            // Check for gameId/categoryId to fetch WR
-            const metadata = timerData.run?.metadata;
-            if (metadata?.gameId && metadata?.categoryId) {
-               fetchWorldRecord(metadata.gameId, metadata.categoryId);
-            }
-            return;
-          }
-        } catch {
-          if (lastCommand.current === 'getbestpossibletime') {
-             setBestPossibleTime(parseTime(message));
-          } else if (lastCommand.current === 'getpredictedtime Personal Best') {
-             setPredictedTime(parseTime(message));
-          }
-        }
-      } catch (error) {
-        console.error('Error processing message:', error);
-      }
-    };
-  }, [settings.wsUrl, fetchWorldRecord]);
 
   useEffect(() => {
-    connect();
-    return () => {
-      if (ws.current) {
-        ws.current.onclose = null;
-        ws.current.close();
-      }
-      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+    // Don't connect with the default URL before the saved one has been read.
+    if (!isLoaded) return;
+
+    let disposed = false;
+    let socket: WebSocket | null = null;
+    let attempt = 0;
+    let lastMessageAt = 0;
+    let gotState = false;
+    const timers = new Set<ReturnType<typeof setTimeout>>();
+
+    const later = (fn: () => void, ms: number) => {
+      const id = setTimeout(() => {
+        timers.delete(id);
+        fn();
+      }, ms);
+      timers.add(id);
     };
-  }, [connect]);
+    const update = (status: ConnectionStatus, protocolWarning = false) => {
+      if (!disposed) setConnection({ url, status, protocolWarning, failures: attempt });
+    };
 
-  const sendCommand = useCallback((command: string) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      lastCommand.current = command;
-      ws.current.send(command);
+    const handleMessage = (data: unknown) => {
+      lastMessageAt = performance.now();
+      const message = parseServerMessage(data);
+      if (message.kind === 'text') {
+        update('connected', true);
+        return;
+      }
+      if (message.kind !== 'state') return;
+      if (!gotState) {
+        gotState = true;
+        update('connected', false);
+      }
+      const next = message.state;
+      metadataRef.current = next.run.metadata;
+      const receivedAt = performance.now();
+      setSnapshot((prev) => {
+        const sameSource = prev?.url === url;
+        const wasEnded = sameSource && prev.state.timerState === 'Ended';
+        return {
+          url,
+          state: next,
+          anchor: { phase: next.timerState, time: next.currentTime, isGameTimePaused: next.isGameTimePaused, receivedAt },
+          endedAt: next.timerState !== 'Ended' ? null : wasEnded ? prev.endedAt : receivedAt,
+        };
+      });
+    };
+
+    const scheduleReconnect = () => {
+      const delay = Math.min(1_000 * 2 ** attempt, MAX_RETRY_DELAY_MS);
+      attempt += 1;
+      later(open, delay);
+    };
+
+    function open() {
+      if (disposed) return;
+      update('connecting');
+      gotState = false;
+      let current: WebSocket;
+      try {
+        current = new WebSocket(url);
+      } catch (error) {
+        console.error('Invalid LiveSplit server address', url, error);
+        update('disconnected');
+        scheduleReconnect();
+        return;
+      }
+      socket = current;
+      socketRef.current = current;
+
+      later(() => {
+        if (current.readyState === WebSocket.CONNECTING) current.close();
+      }, CONNECT_TIMEOUT_MS);
+
+      current.onopen = () => {
+        attempt = 0;
+        lastMessageAt = performance.now();
+        update('connected');
+        // The server sends the state on connect; if it doesn't, ask once and
+        // then warn that this is probably not LiveSplit.WebSocketServer.
+        later(() => {
+          if (gotState || current.readyState !== WebSocket.OPEN) return;
+          current.send('state');
+          later(() => {
+            if (!gotState && current.readyState === WebSocket.OPEN) update('connected', true);
+          }, FIRST_STATE_TIMEOUT_MS);
+        }, FIRST_STATE_TIMEOUT_MS);
+      };
+      current.onmessage = (event) => handleMessage(event.data);
+      current.onclose = () => {
+        if (socketRef.current === current) socketRef.current = null;
+        if (disposed) return;
+        update('disconnected');
+        scheduleReconnect();
+      };
     }
-  }, []);
 
-  return (
-    <LiveSplitContext.Provider value={{ runData, isConnected, isConnecting, sendCommand, bestPossibleTime, predictedTime, worldRecord }}>
-      {children}
-    </LiveSplitContext.Provider>
+    const watchdog = setInterval(() => {
+      if (!socket || socket.readyState !== WebSocket.OPEN) return;
+      const idle = performance.now() - lastMessageAt;
+      if (idle > IDLE_RECONNECT_MS) socket.close();
+      else if (idle > IDLE_PING_MS) socket.send('hi');
+    }, 5_000);
+
+    open();
+
+    return () => {
+      disposed = true;
+      clearInterval(watchdog);
+      timers.forEach(clearTimeout);
+      if (socket) {
+        socket.onopen = socket.onmessage = socket.onclose = null;
+        socket.close();
+      }
+      socketRef.current = null;
+    };
+  }, [url, isLoaded]);
+
+  const live = snapshot?.url === url ? snapshot : null;
+  const state = live?.state ?? null;
+  const timingMethod: TimingMethod = state?.currentTimingMethod ?? 'RealTime';
+  const comparison = state ? resolveComparison(state) : 'Personal Best';
+  const status = connection.url === url ? connection.status : 'connecting';
+  const isConnected = status === 'connected';
+  const isRetrying = status === 'disconnected' || (status === 'connecting' && connection.url === url && connection.failures > 0);
+
+  // Keep game time accurate: loads pause it without the server sending an event.
+  const needsGameTimeSync = isConnected && state?.timerState === 'Running' && timingMethod === 'GameTime';
+  useEffect(() => {
+    if (!needsGameTimeSync) return;
+    const id = setInterval(() => sendCommand('state'), GAME_TIME_SYNC_MS);
+    return () => clearInterval(id);
+  }, [needsGameTimeSync, sendCommand]);
+
+  const worldRecord = useWorldRecord(worldRecordKey(state?.run.metadata), metadataRef);
+
+  const value = useMemo<LiveSplitContextType>(
+    () => ({
+      status,
+      isConnected,
+      isConnecting: status === 'connecting',
+      isRetrying,
+      protocolWarning: connection.url === url && connection.protocolWarning,
+      state,
+      anchor: live?.anchor ?? null,
+      endedAt: live?.endedAt ?? null,
+      timingMethod,
+      comparison,
+      sendCommand,
+      worldRecord,
+    }),
+    [status, isConnected, isRetrying, connection, url, state, live, timingMethod, comparison, sendCommand, worldRecord],
   );
+
+  return <LiveSplitContext.Provider value={value}>{children}</LiveSplitContext.Provider>;
+}
+
+/** Fetches the world record once per game/category/sub-category combination. */
+function useWorldRecord(key: string | null, metadataRef: React.RefObject<RunMetadata | null>): WorldRecordStatus {
+  const [result, setResult] = useState<{ key: string; value: WorldRecordStatus } | null>(null);
+
+  useEffect(() => {
+    const meta = metadataRef.current;
+    if (!key || !meta) return;
+    const controller = new AbortController();
+    let retry: ReturnType<typeof setTimeout> | undefined;
+
+    const load = async () => {
+      if (controller.signal.aborted) return;
+      const cached = getCachedWorldRecord(key);
+      if (cached) {
+        setResult({ key, value: { status: 'ok', record: cached.record } });
+        return;
+      }
+      try {
+        const record = await fetchWorldRecord(meta, { signal: controller.signal });
+        setCachedWorldRecord(key, record);
+        setResult({ key, value: { status: 'ok', record } });
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        console.warn('Failed to fetch world record', error);
+        setResult({ key, value: { status: 'error' } });
+        retry = setTimeout(load, WR_RETRY_MS);
+      }
+    };
+    void Promise.resolve().then(load);
+
+    return () => {
+      controller.abort();
+      clearTimeout(retry);
+    };
+  }, [key, metadataRef]);
+
+  if (!key) return { status: 'none' };
+  return result?.key === key ? result.value : { status: 'loading' };
 }
 
 export function useLiveSplit() {
@@ -140,34 +284,4 @@ export function useLiveSplit() {
     throw new Error('useLiveSplit must be used within a LiveSplitProvider');
   }
   return context;
-}
-
-function parseTime(timeString: string): number | null {
-  if (!timeString || timeString === '-') return null;
-  const numeric = parseFloat(timeString);
-  if (!isNaN(numeric)) return numeric * 1000;
-  try {
-    const [main, csStr] = timeString.split('.');
-    const parts = main.split(':').reverse();
-    let seconds = 0;
-    if (parts[0]) seconds += parseFloat(parts[0]);
-    if (parts[1]) seconds += parseFloat(parts[1]) * 60;
-    if (parts[2]) seconds += parseFloat(parts[2]) * 3600;
-    let ms = seconds * 1000;
-    if (csStr) ms += parseFloat(csStr) * 10;
-    return ms;
-  } catch {
-    return null;
-  }
-}
-
-function parseISODuration(duration: string): number {
-  // Simple ISO 8601 duration parser (PT1H2M3S)
-  const regex = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+(?:\.\d+)?)S)?/;
-  const matches = duration.match(regex);
-  if (!matches) return 0;
-  const hours = parseInt(matches[1] || '0');
-  const minutes = parseInt(matches[2] || '0');
-  const seconds = parseFloat(matches[3] || '0');
-  return (hours * 3600 + minutes * 60 + seconds) * 1000;
 }

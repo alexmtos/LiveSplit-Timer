@@ -1,64 +1,64 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Settings } from '@/types';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { Settings } from '@/types';
+import { DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY, detectLanguage, sanitizeSettings } from '@/lib/settings';
 
 interface SettingsContextType {
   settings: Settings;
+  /** False until the saved settings have been read from localStorage. */
+  isLoaded: boolean;
   updateSettings: (updates: Partial<Settings>) => void;
   resetSettings: () => void;
 }
 
-const DEFAULT_SETTINGS: Settings = {
-  language: 'pt-BR',
-  theme: 'default',
-  showGraph: true,
-  showTable: true,
-  showControls: true,
-  alwaysExpandedSplits: false,
-  wsUrl: 'ws://localhost:15721',
-  chromaKey: {
-    enabled: false,
-  },
-};
-
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+
+function browserLanguage() {
+  return detectLanguage(typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language]);
+}
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('livesplit-settings');
-    if (saved) {
-      try {
-        setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
-      } catch (e) {
-        console.error('Failed to parse settings', e);
-      }
+    let saved: unknown = null;
+    try {
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      saved = raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.error('Failed to read saved settings', error);
     }
+    // Reading localStorage has to wait for the client; this runs once on mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSettings(sanitizeSettings(saved, browserLanguage()));
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('livesplit-settings', JSON.stringify(settings));
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    } catch (error) {
+      console.error('Failed to save settings', error);
     }
   }, [settings, isLoaded]);
 
-  const updateSettings = (updates: Partial<Settings>) => {
+  const updateSettings = useCallback((updates: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...updates }));
-  };
+  }, []);
 
-  const resetSettings = () => {
-    setSettings(DEFAULT_SETTINGS);
-  };
+  const resetSettings = useCallback(() => {
+    setSettings({ ...DEFAULT_SETTINGS, language: browserLanguage() });
+  }, []);
 
-  return (
-    <SettingsContext.Provider value={{ settings, updateSettings, resetSettings }}>
-      {children}
-    </SettingsContext.Provider>
+  const value = useMemo(
+    () => ({ settings, isLoaded, updateSettings, resetSettings }),
+    [settings, isLoaded, updateSettings, resetSettings],
   );
+
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 
 export function useSettings() {
