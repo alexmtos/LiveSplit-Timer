@@ -1,9 +1,18 @@
 'use client';
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { ConnectionStatus, LiveSplitCommand, LiveSplitState, RunMetadata, TimingMethod } from '@/types';
+import type {
+  CommandError,
+  ConnectionStatus,
+  LiveSplitCommand,
+  LiveSplitState,
+  RunMetadata,
+  ServerInfo,
+  TimingMethod,
+} from '@/types';
 import { useSettings } from './SettingsContext';
-import { parseServerMessage } from '@/lib/state';
+import { connectionUrl } from '@/lib/connection';
+import { extractIcons, hasIcons, parseServerMessage, withCachedIcons, type IconCache } from '@/lib/state';
 import { resolveComparison, type TimeAnchor } from '@/lib/run';
 import {
   fetchWorldRecord,
@@ -15,19 +24,22 @@ import {
 
 const CONNECT_TIMEOUT_MS = 5_000;
 const MAX_RETRY_DELAY_MS = 10_000;
-/** The server broadcasts every 15 s; after this long without traffic we ping it. */
+/** The server resends the state every 15 s by default; after this long without traffic we ping it. */
 const IDLE_PING_MS = 20_000;
 /** ...and after this long we assume the connection is dead and reconnect. */
 const IDLE_RECONNECT_MS = 45_000;
 /** Time to wait for the first state before suspecting the wrong server. */
 const FIRST_STATE_TIMEOUT_MS = 4_000;
 /**
- * Game time can pause without any event (load removal), so poll while it
- * matters. Every poll makes the server rebuild the whole state (icons
- * included), so keep it modest.
+ * Protocol 1 only: game time can pause without any event (load removal), so
+ * poll while it matters. Protocol 2 sends game-time-paused/resumed events.
  */
 const GAME_TIME_SYNC_MS = 3_000;
 const WR_RETRY_MS = 60_000;
+/** Events after which the run's icons may have changed (protocol 2 events carry no icons). */
+const ICON_EVENTS = new Set(['hello', 'run-changed', 'run-manually-modified']);
+/** Errors that only mean the timer moved on before the command arrived; not worth showing. */
+const SILENT_ERRORS = new Set(['invalid_phase']);
 
 export type WorldRecordStatus =
   | { status: 'none' }
@@ -36,11 +48,16 @@ export type WorldRecordStatus =
   | { status: 'ok'; record: WorldRecord | null };
 
 interface LiveSnapshot {
-  url: string;
+  source: string;
   state: LiveSplitState;
   anchor: TimeAnchor;
   /** performance.now() when the run entered "Ended"; guards against accidental resets. */
   endedAt: number | null;
+}
+
+export interface CommandFailure extends CommandError {
+  /** Date.now() when it happened, so repeated identical errors still show. */
+  at: number;
 }
 
 interface LiveSplitContextType {
@@ -51,36 +68,64 @@ interface LiveSplitContextType {
   isRetrying: boolean;
   /** Connected, but the server is not LiveSplit.WebSocketServer (e.g. LiveSplit's built-in server). */
   protocolWarning: boolean;
+  /** The component refused the token (protocol 2). */
+  unauthorized: boolean;
+  /** Set once connected: protocol version and, for protocol 2, component details. */
+  server: ServerInfo | null;
   state: LiveSplitState | null;
   anchor: TimeAnchor | null;
   endedAt: number | null;
   timingMethod: TimingMethod;
   comparison: string;
-  sendCommand: (command: LiveSplitCommand) => boolean;
+  /** Sends an action; `args` are only sent with protocol 2. Returns false when not connected. */
+  sendCommand: (command: LiveSplitCommand, args?: Record<string, unknown>) => boolean;
+  /** Last command refused by the server (protocol 2). */
+  lastError: CommandFailure | null;
   worldRecord: WorldRecordStatus;
 }
 
 const LiveSplitContext = createContext<LiveSplitContextType | undefined>(undefined);
 
+interface ConnectionState {
+  source: string;
+  status: ConnectionStatus;
+  protocolWarning: boolean;
+  unauthorized: boolean;
+  /** Consecutive failed attempts; > 0 while retrying after a failure. */
+  failures: number;
+  server: ServerInfo | null;
+}
+
 export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
   const { settings, isLoaded } = useSettings();
   const url = settings.wsUrl;
+  const token = settings.token;
+  // A new address or token means a new connection and a new run.
+  const source = `${url}\n${token}`;
 
-  const [connection, setConnection] = useState<{
-    url: string;
-    status: ConnectionStatus;
-    protocolWarning: boolean;
-    /** Consecutive failed attempts; > 0 while retrying after a failure. */
-    failures: number;
-  }>({ url: '', status: 'idle', protocolWarning: false, failures: 0 });
+  const [connection, setConnection] = useState<ConnectionState>({
+    source: '',
+    status: 'idle',
+    protocolWarning: false,
+    unauthorized: false,
+    failures: 0,
+    server: null,
+  });
   const [snapshot, setSnapshot] = useState<LiveSnapshot | null>(null);
+  const [lastError, setLastError] = useState<CommandFailure | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const protocolRef = useRef<1 | 2>(1);
+  const nextIdRef = useRef(1);
   const metadataRef = useRef<RunMetadata | null>(null);
 
-  const sendCommand = useCallback((command: LiveSplitCommand) => {
+  const sendCommand = useCallback((command: LiveSplitCommand, args?: Record<string, unknown>) => {
     const socket = socketRef.current;
     if (socket?.readyState !== WebSocket.OPEN) return false;
-    socket.send(command);
+    if (protocolRef.current === 2) {
+      socket.send(JSON.stringify({ id: nextIdRef.current++, action: command, ...(args ? { args } : {}) }));
+    } else {
+      socket.send(command);
+    }
     return true;
   }, []);
 
@@ -93,6 +138,10 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
     let attempt = 0;
     let lastMessageAt = 0;
     let gotState = false;
+    let server: ServerInfo | null = null;
+    let icons: IconCache | null = null;
+    /** The socket whose token the server refused. */
+    let refusedSocket: WebSocket | null = null;
     const timers = new Set<ReturnType<typeof setTimeout>>();
 
     const later = (fn: () => void, ms: number) => {
@@ -102,38 +151,92 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       }, ms);
       timers.add(id);
     };
-    const update = (status: ConnectionStatus, protocolWarning = false) => {
-      if (!disposed) setConnection({ url, status, protocolWarning, failures: attempt });
+    const update = (status: ConnectionStatus, flags: { protocolWarning?: boolean; unauthorized?: boolean } = {}) => {
+      if (disposed) return;
+      setConnection({
+        source,
+        status,
+        protocolWarning: flags.protocolWarning ?? false,
+        unauthorized: flags.unauthorized ?? false,
+        failures: attempt,
+        server,
+      });
+    };
+    const requestIcons = (target: WebSocket) => {
+      if (protocolRef.current === 2 && target.readyState === WebSocket.OPEN) {
+        target.send(JSON.stringify({ id: 'icons', action: 'state', args: { includeIcons: true } }));
+      }
     };
 
-    const handleMessage = (data: unknown) => {
-      lastMessageAt = performance.now();
-      const message = parseServerMessage(data);
-      if (message.kind === 'text') {
-        update('connected', true);
-        return;
+    const applyState = (incoming: LiveSplitState) => {
+      let next = incoming;
+      if (protocolRef.current === 2) {
+        if (hasIcons(incoming)) icons = extractIcons(incoming);
+        next = withCachedIcons(incoming, icons);
       }
-      if (message.kind !== 'state') return;
-      if (!gotState) {
-        gotState = true;
-        // Only a working session resets the backoff: a server that accepts and
-        // immediately drops connections must not be retried every second.
-        attempt = 0;
-        update('connected', false);
-      }
-      const next = message.state;
       metadataRef.current = next.run.metadata;
       const receivedAt = performance.now();
       setSnapshot((prev) => {
-        const sameSource = prev?.url === url;
-        const wasEnded = sameSource && prev.state.timerState === 'Ended';
+        const wasEnded = prev?.source === source && prev.state.timerState === 'Ended';
         return {
-          url,
+          source,
           state: next,
           anchor: { phase: next.timerState, time: next.currentTime, isGameTimePaused: next.isGameTimePaused, receivedAt },
           endedAt: next.timerState !== 'Ended' ? null : wasEnded ? prev.endedAt : receivedAt,
         };
       });
+    };
+
+    const handleMessage = (current: WebSocket, data: unknown) => {
+      lastMessageAt = performance.now();
+      const message = parseServerMessage(data);
+      switch (message.kind) {
+        case 'text':
+          update('connected', { protocolWarning: true });
+          return;
+        case 'response':
+          if (message.error?.code === 'unauthorized') {
+            // The server closes the connection right after; retries keep showing the token problem.
+            refusedSocket = current;
+            update('disconnected', { unauthorized: true });
+            return;
+          }
+          if (!message.ok && message.error && !SILENT_ERRORS.has(message.error.code)) {
+            setLastError({ ...message.error, at: Date.now() });
+          }
+          return;
+        case 'tick': {
+          const tick = message.tick;
+          const receivedAt = performance.now();
+          setSnapshot((prev) =>
+            prev?.source === source
+              ? {
+                  ...prev,
+                  state: { ...prev.state, ...tick },
+                  anchor: { phase: tick.timerState, time: tick.currentTime, isGameTimePaused: tick.isGameTimePaused, receivedAt },
+                }
+              : prev,
+          );
+          return;
+        }
+        case 'event':
+          if (ICON_EVENTS.has(message.event)) requestIcons(current);
+          return;
+        case 'state': {
+          if (!gotState) {
+            gotState = true;
+            // Only a working session resets the backoff: a server that accepts and
+            // immediately drops connections must not be retried every second.
+            attempt = 0;
+            protocolRef.current = message.hello?.protocolVersion === 2 ? 2 : 1;
+            server = message.hello ?? { protocolVersion: 1, componentVersion: null, liveSplitVersion: null, readOnly: false };
+            update('connected');
+          }
+          applyState(message.state);
+          if (message.action && ICON_EVENTS.has(message.action)) requestIcons(current);
+          return;
+        }
+      }
     };
 
     const scheduleReconnect = () => {
@@ -144,11 +247,15 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
 
     function open() {
       if (disposed) return;
-      update('connecting');
+      // Keep showing a refused token while retrying, until a connection succeeds.
+      update('connecting', { unauthorized: socket !== null && refusedSocket === socket });
       gotState = false;
+      server = null;
+      icons = null;
+      protocolRef.current = 1;
       let current: WebSocket;
       try {
-        current = new WebSocket(url);
+        current = new WebSocket(connectionUrl(url, token));
       } catch (error) {
         console.error('Invalid LiveSplit server address', url, error);
         update('disconnected');
@@ -157,6 +264,7 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       }
       socket = current;
       socketRef.current = current;
+      const refused = () => refusedSocket === current;
 
       later(() => {
         if (current.readyState === WebSocket.CONNECTING) current.close();
@@ -168,18 +276,18 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
         // The server sends the state on connect; if it doesn't, ask once and
         // then warn that this is probably not LiveSplit.WebSocketServer.
         later(() => {
-          if (gotState || current.readyState !== WebSocket.OPEN) return;
+          if (gotState || refused() || current.readyState !== WebSocket.OPEN) return;
           current.send('state');
           later(() => {
-            if (!gotState && current.readyState === WebSocket.OPEN) update('connected', true);
+            if (!gotState && !refused() && current.readyState === WebSocket.OPEN) update('connected', { protocolWarning: true });
           }, FIRST_STATE_TIMEOUT_MS);
         }, FIRST_STATE_TIMEOUT_MS);
       };
-      current.onmessage = (event) => handleMessage(event.data);
+      current.onmessage = (event) => handleMessage(current, event.data);
       current.onclose = () => {
         if (socketRef.current === current) socketRef.current = null;
         if (disposed) return;
-        update('disconnected');
+        update('disconnected', { unauthorized: refused() });
         scheduleReconnect();
       };
     }
@@ -198,7 +306,7 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
         update('disconnected');
         scheduleReconnect();
       } else if (idle > IDLE_PING_MS) {
-        socket.send('hi');
+        socket.send(protocolRef.current === 2 ? JSON.stringify({ action: 'ping' }) : 'hi');
       }
     }, 5_000);
 
@@ -214,18 +322,21 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       }
       socketRef.current = null;
     };
-  }, [url, isLoaded]);
+  }, [source, url, token, isLoaded]);
 
-  const live = snapshot?.url === url ? snapshot : null;
+  const live = snapshot?.source === source ? snapshot : null;
   const state = live?.state ?? null;
+  const current = connection.source === source ? connection : null;
   const timingMethod: TimingMethod = state?.currentTimingMethod ?? 'RealTime';
   const comparison = state ? resolveComparison(state) : 'Personal Best';
-  const status = connection.url === url ? connection.status : 'connecting';
+  const status = current?.status ?? 'connecting';
   const isConnected = status === 'connected';
-  const isRetrying = status === 'disconnected' || (status === 'connecting' && connection.url === url && connection.failures > 0);
+  const isRetrying = status === 'disconnected' || (status === 'connecting' && (current?.failures ?? 0) > 0);
+  const server = isConnected ? (current?.server ?? null) : null;
 
-  // Keep game time accurate: loads pause it without the server sending an event.
-  const needsGameTimeSync = isConnected && state?.timerState === 'Running' && timingMethod === 'GameTime';
+  // Protocol 1 only: keep game time accurate, loads pause it without an event.
+  const needsGameTimeSync =
+    isConnected && server?.protocolVersion !== 2 && state?.timerState === 'Running' && timingMethod === 'GameTime';
   useEffect(() => {
     if (!needsGameTimeSync) return;
     const id = setInterval(() => sendCommand('state'), GAME_TIME_SYNC_MS);
@@ -240,16 +351,19 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       isConnected,
       isConnecting: status === 'connecting',
       isRetrying,
-      protocolWarning: connection.url === url && connection.protocolWarning,
+      protocolWarning: !!current?.protocolWarning,
+      unauthorized: !!current?.unauthorized,
+      server,
       state,
       anchor: live?.anchor ?? null,
       endedAt: live?.endedAt ?? null,
       timingMethod,
       comparison,
       sendCommand,
+      lastError,
       worldRecord,
     }),
-    [status, isConnected, isRetrying, connection, url, state, live, timingMethod, comparison, sendCommand, worldRecord],
+    [status, isConnected, isRetrying, current, server, state, live, timingMethod, comparison, sendCommand, lastError, worldRecord],
   );
 
   return <LiveSplitContext.Provider value={value}>{children}</LiveSplitContext.Provider>;

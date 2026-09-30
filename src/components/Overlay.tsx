@@ -8,7 +8,7 @@ import { Header } from './Header';
 import { Predictions } from './Predictions';
 import { SettingsModal } from './SettingsModal';
 import { SplitsTable } from './SplitsTable';
-import { ConnectionNotice, ResetConfirmToast } from './StatusNotices';
+import { CommandErrorToast, ConnectionNotice, ResetConfirmToast } from './StatusNotices';
 import { ThemeManager } from './ThemeManager';
 import { TimerDisplay } from './TimerDisplay';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
@@ -94,6 +94,7 @@ export function Overlay({ only }: { only?: OverlaySection }) {
       </div>
 
       <ResetConfirmToast />
+      <CommandErrorToast />
       <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
     </main>
   );

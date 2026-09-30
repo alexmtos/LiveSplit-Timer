@@ -6,7 +6,7 @@ import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useExport } from '@/hooks/useExport';
 import { useI18n } from '@/hooks/useI18n';
-import { buildWsUrl, isBlockedByMixedContent, parseWsUrl, testWebSocket } from '@/lib/connection';
+import { buildWsUrl, isBlockedByMixedContent, parseWsUrl, testConnection, type TestResult } from '@/lib/connection';
 import { buildOverlayUrl } from '@/lib/settings';
 import { THEME_COLORS } from '@/lib/themes';
 import { LANGUAGE_OPTIONS, type TranslationKey } from '@/lib/translations';
@@ -38,6 +38,62 @@ const TOGGLES: { key: BooleanSetting; title: TranslationKey; desc: TranslationKe
   { key: 'hotkeysEnabled', title: 'display_hotkeys', desc: 'display_hotkeys_desc' },
   { key: 'streamMode', title: 'display_stream', desc: 'display_stream_desc' },
 ];
+
+/** Protocol 2 only: change LiveSplit's comparison and timing method from here. */
+function LiveSplitSection() {
+  const { state, server, comparison, timingMethod, sendCommand } = useLiveSplit();
+  const { t } = useI18n();
+  if (!state || server?.protocolVersion !== 2) return null;
+  const disabled = server.readOnly;
+  const comparisons = state.run.comparisons.length > 0 ? state.run.comparisons : [comparison];
+
+  return (
+    <section className="space-y-4">
+      <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('livesplit_title')}</h3>
+      <p className="text-[11px] leading-relaxed text-[var(--text-dim)]">
+        {disabled ? t('livesplit_read_only') : t('livesplit_desc')}
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="space-y-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">{t('livesplit_comparison')}</span>
+          <select
+            value={comparison}
+            disabled={disabled}
+            onChange={(e) => sendCommand('setcomparison', { comparison: e.target.value })}
+            className="w-full rounded-md border border-white/10 bg-black/30 px-2 py-2 text-sm text-white focus:border-accent focus:outline-none disabled:opacity-50"
+          >
+            {comparisons.map((name) => (
+              <option key={name} value={name} className="bg-black">
+                {name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="space-y-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">{t('livesplit_timing')}</span>
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-white/10 bg-black/30 p-1" role="radiogroup">
+            {(['RealTime', 'GameTime'] as const).map((method) => (
+              <button
+                key={method}
+                type="button"
+                role="radio"
+                aria-checked={timingMethod === method}
+                disabled={disabled}
+                onClick={() => sendCommand('settimingmethod', { method: method.toLowerCase() })}
+                className={cn(
+                  'rounded px-2 py-1.5 text-xs font-bold transition-colors disabled:opacity-50',
+                  timingMethod === method ? 'bg-accent text-[color:var(--accent-fg)]' : 'text-white/70 hover:bg-white/10',
+                )}
+              >
+                {method === 'RealTime' ? t('livesplit_real_time') : t('livesplit_game_time')}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const PAGES: { path: string; label: TranslationKey }[] = [
   { path: '/', label: 'obs_page_full' },
@@ -152,16 +208,17 @@ function SettingRow({
   );
 }
 
-type TestResult = 'idle' | 'testing' | 'success' | 'failed' | 'invalid';
+type FormResult = 'idle' | 'testing' | 'invalid' | TestResult;
 
 function ConnectionSection() {
   const { settings, updateSettings } = useSettings();
-  const { status, protocolWarning } = useLiveSplit();
+  const { status, protocolWarning, unauthorized, server } = useLiveSplit();
   const { t } = useI18n();
   const initial = parseWsUrl(settings.wsUrl);
   const [host, setHost] = useState(initial.host);
   const [port, setPort] = useState(initial.port);
-  const [result, setResult] = useState<TestResult>('idle');
+  const [token, setToken] = useState(settings.token);
+  const [result, setResult] = useState<FormResult>('idle');
   const [pageProtocol, setPageProtocol] = useState('');
 
   useEffect(() => {
@@ -177,12 +234,16 @@ function ConnectionSection() {
       return;
     }
     setResult('testing');
-    const ok = await testWebSocket(url);
-    updateSettings({ wsUrl: url });
+    const outcome = await testConnection(url, token);
+    updateSettings({ wsUrl: url, token: token.trim() });
     const saved = parseWsUrl(url);
     setHost(saved.host);
     setPort(saved.port);
-    setResult(ok ? 'success' : 'failed');
+    setResult(outcome);
+  };
+  const edit = (setter: (value: string) => void) => (value: string) => {
+    setter(value);
+    setResult('idle');
   };
 
   const statusKey: TranslationKey =
@@ -218,10 +279,7 @@ function ConnectionSection() {
             autoComplete="off"
             spellCheck={false}
             value={host}
-            onChange={(e) => {
-              setHost(e.target.value);
-              setResult('idle');
-            }}
+            onChange={(e) => edit(setHost)(e.target.value)}
             className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-all focus:border-accent focus:outline-none"
           />
         </label>
@@ -232,10 +290,7 @@ function ConnectionSection() {
             inputMode="numeric"
             autoComplete="off"
             value={port}
-            onChange={(e) => {
-              setPort(e.target.value.replace(/\D/g, '').slice(0, 5));
-              setResult('idle');
-            }}
+            onChange={(e) => edit(setPort)(e.target.value.replace(/\D/g, '').slice(0, 5))}
             className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-all focus:border-accent focus:outline-none"
           />
         </label>
@@ -246,11 +301,50 @@ function ConnectionSection() {
         >
           {result === 'testing' ? t('connection_testing') : t('connection_test')}
         </button>
+        <label className="col-span-3 space-y-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">{t('connection_token')}</span>
+          <input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            value={token}
+            placeholder={t('connection_token_placeholder')}
+            onChange={(e) => edit(setToken)(e.target.value)}
+            className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 font-mono text-sm text-white placeholder:font-sans placeholder:text-white/30 transition-all focus:border-accent focus:outline-none"
+          />
+        </label>
       </form>
 
-      {result === 'success' && <p className="text-xs text-green-400">{t('connection_test_success')}</p>}
+      {result === 'ok' && <p className="text-xs text-green-400">{t('connection_test_success')}</p>}
       {result === 'failed' && <p className="text-xs text-red-400">{t('connection_test_failed')}</p>}
       {result === 'invalid' && <p className="text-xs text-red-400">{t('connection_invalid')}</p>}
+      {result === 'unauthorized' && <p className="text-xs text-red-400">{t('connection_unauthorized')}</p>}
+      {result === 'wrong-server' && <p className="text-xs text-amber-300">{t('connection_protocol_warning')}</p>}
+
+      {server && (
+        <p className="text-[11px] text-[var(--text-dim)]">
+          {[
+            server.liveSplitVersion && `LiveSplit ${server.liveSplitVersion}`,
+            server.componentVersion && `WebSocket Server ${server.componentVersion}`,
+            `${t('connection_protocol')} ${server.protocolVersion}`,
+            server.readOnly && t('connection_read_only'),
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      )}
+      {server?.protocolVersion === 1 && (
+        <p className="flex gap-2 rounded-md border border-white/10 bg-white/5 p-3 text-xs text-white/70">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0 text-amber-300" />
+          {t('connection_legacy')}
+        </p>
+      )}
+      {unauthorized && result !== 'unauthorized' && (
+        <p className="flex gap-2 rounded-md border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-200">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          {t('connection_unauthorized')}
+        </p>
+      )}
 
       {protocolWarning && (
         <p className="flex gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
@@ -408,6 +502,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
             </p>
           )}
           <ConnectionSection key={formGeneration} />
+          <LiveSplitSection />
 
           <section className="space-y-4">
             <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('theme_title')}</h3>

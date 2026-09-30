@@ -1,10 +1,12 @@
 /**
- * Payload sent by the LiveSplit.WebSocketServer component
- * (https://github.com/alexmtos/LiveSplit.WebSocketServer, `JsonState.cs`).
+ * State sent by the LiveSplit.WebSocketServer component
+ * (https://github.com/alexmtos/LiveSplit.WebSocketServer, `docs/PROTOCOL.md`).
  *
- * The server pushes `{ state }` when it accepts a connection (together with
- * `open`), on every timer event (together with `action`) and every 15 seconds
- * (`action: "refresh"`). All durations are integer milliseconds.
+ * Protocol version 2 (component 2.x, `?protocol=2`) sends typed messages:
+ * `hello` with the state on connect, `event` with the state on every change
+ * (without icons unless requested), `response` for every request and `tick`.
+ * Protocol version 1 (component 1.x) pushes `{ open, state }` on connect and
+ * `{ action, state }` on events. In both, all durations are integer milliseconds.
  */
 
 export type TimerPhase = 'NotRunning' | 'Running' | 'Paused' | 'Ended';
@@ -63,10 +65,12 @@ export interface LiveSplitState {
   attemptEnded: string | null;
 }
 
-/** Text commands understood by LiveSplit.WebSocketServer (`LiveSplitWebSocketHandler.cs`). */
+/** Actions used by the app. The protocol 1 names also work in protocol 2. */
 export type LiveSplitCommand =
   | 'hi'
+  | 'ping'
   | 'state'
+  | 'subscribe'
   | 'startorsplit'
   | 'starttimer'
   | 'split'
@@ -74,8 +78,26 @@ export type LiveSplitCommand =
   | 'skipsplit'
   | 'pause'
   | 'resume'
+  | 'togglepause'
   | 'reset'
   | 'pausegametime'
-  | 'unpausegametime';
+  | 'unpausegametime'
+  | 'setcomparison'
+  | 'settimingmethod';
+
+/** Protocol 2 only: what the server reported in its `hello` message. */
+export interface ServerInfo {
+  protocolVersion: 1 | 2;
+  componentVersion: string | null;
+  liveSplitVersion: string | null;
+  readOnly: boolean;
+}
+
+/** Protocol 2 error codes (`docs/PROTOCOL.md`). */
+export interface CommandError {
+  code: string;
+  message: string;
+  action: string | null;
+}
 
 export type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected';

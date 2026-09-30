@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeysEnabled: true,
   streamMode: false,
   wsUrl: DEFAULT_WS_URL,
+  token: '',
   chromaKey: {
     enabled: false,
   },
@@ -78,6 +79,7 @@ export function sanitizeSettings(raw: unknown, fallbackLanguage: Language = DEFA
     language: isLanguage(input.language) ? input.language : fallbackLanguage,
     theme: typeof input.theme === 'string' && input.theme in THEME_COLORS ? input.theme : DEFAULT_SETTINGS.theme,
     wsUrl: isWsUrl(input.wsUrl) ? input.wsUrl : DEFAULT_SETTINGS.wsUrl,
+    token: typeof input.token === 'string' ? input.token.trim() : DEFAULT_SETTINGS.token,
     chromaKey: {
       enabled: typeof chroma?.enabled === 'boolean' ? chroma.enabled : DEFAULT_SETTINGS.chromaKey.enabled,
     },
@@ -129,6 +131,9 @@ export function parseUrlOverrides(search: string, currentWsUrl: string): Partial
     if (url) overrides.wsUrl = url;
   }
 
+  const token = params.get('token');
+  if (token !== null) overrides.token = token.trim();
+
   const theme = params.get('theme');
   if (theme && theme in THEME_COLORS) overrides.theme = theme;
 
@@ -164,6 +169,7 @@ export function buildOverlayUrl(origin: string, path: string, settings: Settings
     params.set('port', address.port);
     if (address.secure) params.set('secure', '1');
   }
+  if (settings.token) params.set('token', settings.token);
   if (settings.theme !== DEFAULT_SETTINGS.theme) params.set('theme', settings.theme);
   params.set('lang', settings.language);
   if (settings.chromaKey.enabled) params.set('transparent', '1');

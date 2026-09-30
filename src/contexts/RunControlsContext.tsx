@@ -27,7 +27,7 @@ interface RunControls {
 const RunControlsContext = createContext<RunControls | undefined>(undefined);
 
 export function RunControlsProvider({ children }: { children: React.ReactNode }) {
-  const { state, isConnected, sendCommand, endedAt } = useLiveSplit();
+  const { state, isConnected, server, sendCommand, endedAt } = useLiveSplit();
   const [unlockedEnd, setUnlockedEnd] = useState<number | null>(null);
   // The first reset press only counts for the attempt it was made in.
   const [armed, setArmed] = useState<{ at: number; attempt: string } | null>(null);
@@ -49,7 +49,8 @@ export function RunControlsProvider({ children }: { children: React.ReactNode })
   const isArmed = armed !== null && armed.attempt === attempt;
   const index = state?.currentSplitIndex ?? -1;
   const segmentCount = state?.run.segments.length ?? 0;
-  const ready = isConnected && segmentCount > 0;
+  // A read-only component refuses every control command.
+  const ready = isConnected && segmentCount > 0 && !server?.readOnly;
   const active = isRunActive(phase);
   const endLocked = phase === 'Ended' && endedAt !== null && unlockedEnd !== endedAt;
 
@@ -70,8 +71,10 @@ export function RunControlsProvider({ children }: { children: React.ReactNode })
 
   const togglePause = useCallback(() => {
     if (!canTogglePause) return;
-    sendCommand(phase === 'Paused' ? 'resume' : 'pause');
-  }, [canTogglePause, phase, sendCommand]);
+    // Protocol 2 has an atomic toggle, immune to a stale phase on our side.
+    if (server?.protocolVersion === 2) sendCommand('togglepause');
+    else sendCommand(phase === 'Paused' ? 'resume' : 'pause');
+  }, [canTogglePause, phase, server, sendCommand]);
 
   const skip = useCallback(() => {
     if (canSkip) sendCommand('skipsplit');

@@ -1,4 +1,4 @@
-import type { LiveSplitState, RunMetadata, Segment, TimeValue, TimerPhase, TimingMethod } from '@/types';
+import type { CommandError, LiveSplitState, RunMetadata, Segment, ServerInfo, TimeValue, TimerPhase, TimingMethod } from '@/types';
 
 type Json = Record<string, unknown>;
 
@@ -92,11 +92,32 @@ export function normalizeState(raw: unknown): LiveSplitState | null {
   };
 }
 
+export interface TickUpdate {
+  timerState: TimerPhase;
+  currentTime: TimeValue;
+  currentSplitIndex: number;
+  isGameTimePaused: boolean;
+}
+
 export type ServerMessage =
-  | { kind: 'state'; state: LiveSplitState; action: string | null }
+  /** A full state: v1 greeting/event/reply, v2 hello/event, or the reply to `state`. */
+  | { kind: 'state'; state: LiveSplitState; action: string | null; hello?: ServerInfo }
+  /** v2 event sent without a state (depends on the subscription). */
+  | { kind: 'event'; event: string }
+  | { kind: 'tick'; tick: TickUpdate }
+  | { kind: 'response'; id: string | number | null; action: string | null; ok: boolean; error: CommandError | null }
   | { kind: 'other' }
   /** Plain-text reply: typical of LiveSplit's built-in server, which this app does not speak. */
   | { kind: 'text'; text: string };
+
+function toServerInfo(json: Json): ServerInfo {
+  return {
+    protocolVersion: json.protocolVersion === 2 ? 2 : 1,
+    componentVersion: toText(json.componentVersion),
+    liveSplitVersion: toText(json.liveSplitVersion),
+    readOnly: json.readOnly === true,
+  };
+}
 
 export function parseServerMessage(data: unknown): ServerMessage {
   if (typeof data !== 'string') return { kind: 'other' };
@@ -107,8 +128,87 @@ export function parseServerMessage(data: unknown): ServerMessage {
     return { kind: 'text', text: data.trim() };
   }
   if (!isObject(json)) return { kind: 'other' };
+
+  switch (json.type) {
+    case 'hello': {
+      const state = normalizeState(json.state);
+      return state ? { kind: 'state', state, action: 'hello', hello: toServerInfo(json) } : { kind: 'other' };
+    }
+    case 'event': {
+      const event = toText(json.event) ?? 'unknown';
+      const state = normalizeState(json.state);
+      return state ? { kind: 'state', state, action: event } : { kind: 'event', event };
+    }
+    case 'tick': {
+      const phase = PHASES.find((p) => p === json.timerState);
+      const index = toNumber(json.currentSplitIndex);
+      if (!phase || index === null) return { kind: 'other' };
+      return {
+        kind: 'tick',
+        tick: {
+          timerState: phase,
+          currentTime: toTimeValue(json.currentTime),
+          currentSplitIndex: Math.trunc(index),
+          isGameTimePaused: json.isGameTimePaused === true,
+        },
+      };
+    }
+    case 'response': {
+      const action = toText(json.action);
+      if (json.ok === true && action?.toLowerCase().replace('getstate', 'state') === 'state') {
+        const state = normalizeState(json.data);
+        if (state) return { kind: 'state', state, action: 'state' };
+      }
+      const error = isObject(json.error)
+        ? { code: toText(json.error.code) ?? 'unknown', message: toText(json.error.message) ?? '', action }
+        : null;
+      const id = typeof json.id === 'string' || typeof json.id === 'number' ? json.id : null;
+      return { kind: 'response', id, action, ok: json.ok === true, error };
+    }
+  }
+
+  // Protocol version 1.
   const state = normalizeState(json.state);
   if (!state) return { kind: 'other' };
   const action = isObject(json.action) ? toText(json.action.action) : json.open ? 'open' : null;
   return { kind: 'state', state, action };
+}
+
+/** Icons of a state, keyed so they can be put back on states sent without icons. */
+export interface IconCache {
+  gameIcon: string | null;
+  segments: Map<string, string>;
+}
+
+const iconKey = (index: number, name: string) => `${index}\u0000${name}`;
+
+export function extractIcons(state: LiveSplitState): IconCache {
+  const segments = new Map<string, string>();
+  state.run.segments.forEach((seg, i) => {
+    if (seg.icon) segments.set(iconKey(i, seg.name), seg.icon);
+  });
+  return { gameIcon: state.run.gameIcon, segments };
+}
+
+/** Fills in icons missing from a protocol 2 state (events omit them) from the cache. */
+export function withCachedIcons(state: LiveSplitState, cache: IconCache | null): LiveSplitState {
+  if (!cache) return state;
+  const needsGameIcon = !state.run.gameIcon && cache.gameIcon;
+  const needsSegmentIcons = state.run.segments.some((seg, i) => !seg.icon && cache.segments.has(iconKey(i, seg.name)));
+  if (!needsGameIcon && !needsSegmentIcons) return state;
+  return {
+    ...state,
+    run: {
+      ...state.run,
+      gameIcon: state.run.gameIcon ?? cache.gameIcon,
+      segments: state.run.segments.map((seg, i) =>
+        seg.icon ? seg : { ...seg, icon: cache.segments.get(iconKey(i, seg.name)) ?? null },
+      ),
+    },
+  };
+}
+
+/** Whether a state carries icons (v1 always does; v2 only when requested). */
+export function hasIcons(state: LiveSplitState): boolean {
+  return !!state.run.gameIcon || state.run.segments.some((seg) => seg.icon);
 }

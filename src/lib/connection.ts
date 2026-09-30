@@ -1,3 +1,5 @@
+import { parseServerMessage } from './state';
+
 export const DEFAULT_PORT = '15721';
 export const DEFAULT_WS_URL = `ws://localhost:${DEFAULT_PORT}`;
 
@@ -56,34 +58,66 @@ export function buildWsUrl(hostInput: string, portInput: string, secure = false)
   }
 }
 
-/** Opens a throwaway socket to check whether something answers at `url`. */
-export function testWebSocket(url: string, timeoutMs = 4000): Promise<boolean> {
+export type TestResult = 'ok' | 'failed' | 'unauthorized' | 'wrong-server';
+
+/**
+ * Opens a throwaway connection and waits for the server's greeting, so a wrong
+ * token (component 2.x accepts the socket, then refuses) or a server that does
+ * not speak this protocol is told apart from a working connection.
+ */
+export function testConnection(url: string, token = '', timeoutMs = 5000): Promise<TestResult> {
   return new Promise((resolve) => {
     let socket: WebSocket;
     try {
-      socket = new WebSocket(url);
+      socket = new WebSocket(connectionUrl(url, token));
     } catch {
-      resolve(false);
+      resolve('failed');
       return;
     }
-    const finish = (ok: boolean) => {
+    let opened = false;
+    const finish = (result: TestResult) => {
       clearTimeout(timer);
-      socket.onopen = socket.onerror = socket.onclose = null;
+      socket.onopen = socket.onerror = socket.onclose = socket.onmessage = null;
       try {
         socket.close();
       } catch {
         // already closed
       }
-      resolve(ok);
+      resolve(result);
     };
-    const timer = setTimeout(() => finish(false), timeoutMs);
-    socket.onopen = () => finish(true);
-    socket.onerror = () => finish(false);
-    socket.onclose = () => finish(false);
+    const timer = setTimeout(() => finish(opened ? 'wrong-server' : 'failed'), timeoutMs);
+    socket.onopen = () => {
+      opened = true;
+    };
+    socket.onmessage = (event) => {
+      const message = parseServerMessage(event.data);
+      if (message.kind === 'state') finish('ok');
+      else if (message.kind === 'response' && message.error?.code === 'unauthorized') finish('unauthorized');
+      else if (message.kind === 'text') finish('wrong-server');
+    };
+    socket.onerror = () => finish('failed');
+    socket.onclose = () => finish('failed');
   });
 }
 
 /** Browsers block `ws://` from pages served over HTTPS. */
 export function isBlockedByMixedContent(url: string, pageProtocol: string): boolean {
   return pageProtocol === 'https:' && url.startsWith('ws://');
+}
+
+/**
+ * URL actually opened: asks for protocol version 2 and adds the token when the
+ * component requires one. Component 1.x ignores the query string and answers
+ * with protocol 1, so the same URL works with both.
+ */
+export function connectionUrl(wsUrl: string, token = ''): string {
+  try {
+    const url = new URL(wsUrl);
+    url.searchParams.set('protocol', '2');
+    if (token.trim()) url.searchParams.set('token', token.trim());
+    else url.searchParams.delete('token');
+    return url.toString();
+  } catch {
+    return wsUrl;
+  }
 }

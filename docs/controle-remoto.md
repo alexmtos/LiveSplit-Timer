@@ -6,6 +6,7 @@ Controle o timer do LiveSplit por um celular, tablet ou outro computador da mesm
 
 - O app precisa estar rodando no computador do LiveSplit (`npm start`).
 - O celular ou tablet precisa estar na mesma rede local.
+- Nas configurações do componente LiveSplit WebSocket Server, **Accept connections from** precisa estar em *Other devices on the network too*. Se o componente tiver **Allowed web origins**, inclua `http://<IP-do-computador>:3000`.
 - Descubra o IP do computador do LiveSplit. No Windows, rode `ipconfig` e procure **Endereço IPv4**.
 
 ## Abrir o controle remoto
@@ -15,7 +16,7 @@ Controle o timer do LiveSplit por um celular, tablet ou outro computador da mesm
 
 A página mostra um botão grande para iniciar, dar split, continuar ou resetar. Abaixo dele ficam os botões de pausar, pular, desfazer e resetar.
 
-> **Nota:** o endereço do LiveSplit fica salvo no navegador do celular. Para configurar sem abrir as configurações, use `http://<IP>:3000/controls?host=<IP>`.
+> **Nota:** o endereço do LiveSplit fica salvo no navegador do celular. Para configurar sem abrir as configurações, use `http://<IP>:3000/controls?host=<IP>`. Se o componente exigir token, acrescente `&token=<token>`.
 
 ## Evitar resets acidentais
 
@@ -45,4 +46,4 @@ Os atalhos ignoram a tecla segurada: manter o Espaço pressionado dá um único 
 Para exibir o timer em outra tela sem permitir comandos:
 
 - Esconda os controles com `hide=controls` na URL e desligue os atalhos com `hotkeys=0`.
-- Para bloquear comandos de qualquer cliente, ative **Read Only** nas configurações do componente LiveSplit WebSocket Server.
+- Para bloquear comandos de qualquer cliente, ative **Read only** nas configurações do componente LiveSplit WebSocket Server. O app passa a mostrar "Somente leitura" no lugar dos controles.

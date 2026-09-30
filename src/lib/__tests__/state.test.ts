@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeState, parseServerMessage } from '@/lib/state';
+import { extractIcons, hasIcons, normalizeState, parseServerMessage, withCachedIcons } from '@/lib/state';
 
 // Shape produced by LiveSplit.WebSocketServer's JsonState.Create.
 const serverState = {
@@ -79,5 +79,82 @@ describe('parseServerMessage', () => {
 
   it('flags plain-text replies (LiveSplit built-in server)', () => {
     expect(parseServerMessage('1:23.45')).toEqual({ kind: 'text', text: '1:23.45' });
+  });
+});
+
+describe('protocol version 2', () => {
+  const iconless = {
+    ...serverState,
+    run: { ...serverState.run, gameIcon: null, segments: serverState.run.segments.map((seg) => ({ ...seg, icon: null })) },
+  };
+
+  it('reads hello with server details', () => {
+    const message = parseServerMessage(
+      JSON.stringify({ type: 'hello', protocolVersion: 2, componentVersion: '2.0.0', liveSplitVersion: '1.8.34', readOnly: true, state: serverState }),
+    );
+    expect(message).toMatchObject({
+      kind: 'state',
+      action: 'hello',
+      hello: { protocolVersion: 2, componentVersion: '2.0.0', liveSplitVersion: '1.8.34', readOnly: true },
+    });
+  });
+
+  it('reads events with and without a state', () => {
+    expect(parseServerMessage(JSON.stringify({ type: 'event', event: 'game-time-paused', state: serverState }))).toMatchObject({
+      kind: 'state',
+      action: 'game-time-paused',
+    });
+    expect(parseServerMessage(JSON.stringify({ type: 'event', event: 'run-changed', data: { path: 'x' } }))).toEqual({
+      kind: 'event',
+      event: 'run-changed',
+    });
+  });
+
+  it('reads the state reply, other replies and errors', () => {
+    expect(parseServerMessage(JSON.stringify({ type: 'response', id: 'icons', action: 'state', ok: true, data: serverState }))).toMatchObject({
+      kind: 'state',
+      action: 'state',
+    });
+    expect(parseServerMessage(JSON.stringify({ type: 'response', id: 3, action: 'split', ok: true, data: {} }))).toEqual({
+      kind: 'response',
+      id: 3,
+      action: 'split',
+      ok: true,
+      error: null,
+    });
+    expect(
+      parseServerMessage(JSON.stringify({ type: 'response', ok: false, error: { code: 'unauthorized', message: 'A valid token is required.' } })),
+    ).toEqual({
+      kind: 'response',
+      id: null,
+      action: null,
+      ok: false,
+      error: { code: 'unauthorized', message: 'A valid token is required.', action: null },
+    });
+  });
+
+  it('reads ticks', () => {
+    expect(
+      parseServerMessage(
+        JSON.stringify({ type: 'tick', timerState: 'Running', currentTime: { realTime: 1000, gameTime: 900 }, currentSplitIndex: 2, currentDelta: -5, isGameTimePaused: true }),
+      ),
+    ).toEqual({
+      kind: 'tick',
+      tick: { timerState: 'Running', currentTime: { realTime: 1000, gameTime: 900 }, currentSplitIndex: 2, isGameTimePaused: true },
+    });
+  });
+
+  it('puts cached icons back on states sent without icons', () => {
+    const full = normalizeState(serverState)!;
+    const bare = normalizeState(iconless)!;
+    expect(hasIcons(bare)).toBe(false);
+    const restored = withCachedIcons(bare, extractIcons(full));
+    expect(restored.run.segments[0].icon).toBe('data:image/png;base64,AAAA');
+  });
+
+  it('does not reuse an icon when the split at that position changed', () => {
+    const full = normalizeState(serverState)!;
+    const renamed = normalizeState({ ...iconless, run: { ...iconless.run, segments: [{ ...iconless.run.segments[0], name: 'Other' }] } })!;
+    expect(withCachedIcons(renamed, extractIcons(full)).run.segments[0].icon).toBeNull();
   });
 });

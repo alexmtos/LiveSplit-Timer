@@ -9,9 +9,22 @@ A faixa vermelha abaixo do cabeçalho e o ponto vermelho na engrenagem indicam q
 Verifique, nesta ordem:
 
 1. O LiveSplit está aberto e o layout atual contém o componente **LiveSplit WebSocket Server**.
-2. O servidor foi iniciado: ative **Auto Start** no componente ou use *Control → Start WebSocket Server*.
+2. O servidor foi iniciado: ative **Start the server automatically** no componente ou use *Control → Start WebSocket Server (JSON)*.
 3. O IP e a porta nas configurações do app são os do componente (porta padrão `15721`). Use **Testar & Salvar** para confirmar.
-4. Se o LiveSplit estiver em outro computador, o firewall do Windows permite conexões de entrada na porta do componente.
+4. Se o app estiver em outro aparelho, **Accept connections from** está em *Other devices on the network too* e o firewall do Windows permite conexões de entrada na porta do componente.
+5. Se o componente tiver **Allowed web origins**, o endereço em que você abre o app está na lista. Caso contrário, o navegador é recusado sem nenhuma mensagem e o app mostra apenas "Desconectado".
+
+## O app mostra que o LiveSplit recusou o token
+
+O componente tem um **Token** definido e o app enviou outro, ou nenhum. Copie o token das configurações do componente para o campo **Token** do painel e clique em **Testar & Salvar**. Nas fontes do OBS, gere a URL de novo em **URL para o OBS**, porque ela inclui o token.
+
+## Os controles mostram "Somente leitura"
+
+O componente está com **Read only** ativado. Desative a opção nas configurações do componente para controlar o timer pelo app.
+
+## Uma mensagem diz que o LiveSplit recusou um comando
+
+Com o componente 2.x, o app mostra por alguns segundos o motivo quando o LiveSplit recusa um comando, por exemplo uma ação bloqueada nas configurações do componente. Comandos que só chegaram depois de o timer mudar de estado, como um split duplo, são ignorados sem aviso.
 
 ## O app conecta, mas não mostra dados
 
@@ -31,7 +44,7 @@ Para resolver, faça uma destas opções:
 ## Os tempos são diferentes dos do LiveSplit
 
 - **Método de tempo:** o app segue o método ativo no LiveSplit. Confira se o selo `IGT` aparece no cabeçalho quando você usa Game Time.
-- **Game Time durante loadings:** o servidor não avisa quando uma pausa de loading começa ou termina. O app corrige o relógio a cada 3 segundos, então pode haver uma diferença breve logo depois de um loading.
+- **Game Time durante loadings:** com o componente 2.x, o app é avisado quando uma pausa de loading começa e termina. Com o 1.x, ele corrige o relógio a cada 3 segundos, então pode haver uma diferença breve logo depois de um loading. Atualize o componente para eliminar essa diferença.
 - **Comparação:** o app usa a comparação selecionada no LiveSplit. Se ela não existir nos splits, usa o Personal Best.
 
 Veja [Como os tempos são calculados](como-funciona.md) para as regras completas.

@@ -9,7 +9,9 @@ O app usa as mesmas escolhas feitas no LiveSplit:
 - **Método de tempo:** Real Time ou Game Time. Com Game Time, o cabeçalho mostra o selo `IGT`. Se o jogo ainda não informou o Game Time, o timer principal mostra o Real Time, como o LiveSplit faz.
 - **Comparação:** Personal Best, Best Segments, Average Segments ou qualquer outra selecionada no LiveSplit. Quando não é o Personal Best, o cabeçalho mostra `vs <comparação>`. Se os splits não tiverem a comparação escolhida, o app usa o Personal Best.
 
-> **Nota:** o servidor só envia o estado quando algo acontece (start, split, pausa) e a cada 15 segundos. Entre as mensagens, o app avança o relógio localmente. Com Game Time, as pausas de loading não geram eventos, então o app também pede o estado a cada 3 segundos durante a run.
+> **Nota:** o servidor só envia o estado quando algo acontece (start, split, pausa, troca de comparação, pausa do Game Time) e a cada 15 segundos. Entre as mensagens, o app avança o relógio localmente. Com o componente 1.x, as pausas de loading não geram eventos, então o app pede o estado a cada 3 segundos durante uma run em Game Time.
+
+Você pode trocar a comparação e o método de tempo do LiveSplit na seção **LiveSplit** do painel de configurações (componente 2.x).
 
 ## Delta ao lado do timer
 

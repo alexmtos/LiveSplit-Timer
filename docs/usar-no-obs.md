@@ -14,7 +14,9 @@ Adicione o LiveSplit Timer à sua live como fonte de navegador, com fundo transp
 3. No OBS, adicione uma **Fonte de navegador** e cole a URL copiada no campo **URL**.
 4. Defina a largura e a altura. Um bom ponto de partida é 450 × 900.
 
-A URL copiada já inclui o modo transparente, o modo stream e as seções escondidas que você configurou. Veja [parâmetros de URL](referencia.md#parâmetros-de-url) para editá-la manualmente.
+A URL copiada já inclui o modo transparente, o modo stream, as seções escondidas e, se houver, o token do componente. Veja [parâmetros de URL](referencia.md#parâmetros-de-url) para editá-la manualmente.
+
+> **Aviso:** quando o componente exige token, ele faz parte da URL. Não mostre a URL da fonte na live.
 
 > **Dica:** a URL leva as configurações junto. Por isso você pode ter várias fontes de navegador com temas ou seções diferentes sem que uma altere a outra.
 

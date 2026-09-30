@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { accentForeground } from '@/lib/themes';
-import { buildWsUrl, isBlockedByMixedContent, parseWsUrl } from '@/lib/connection';
+import { buildWsUrl, connectionUrl, isBlockedByMixedContent, parseWsUrl } from '@/lib/connection';
 import { csvField, safeFileName, toCsv } from '@/lib/csv';
 import { DEFAULT_SETTINGS, buildOverlayUrl, detectLanguage, parseUrlOverrides, sanitizeSettings } from '@/lib/settings';
 
@@ -133,5 +133,19 @@ describe('accentForeground', () => {
     expect(accentForeground('0, 255, 255')).toBe('#000000');
     expect(accentForeground('0, 162, 255')).toBe('#ffffff');
     expect(accentForeground('108, 92, 231')).toBe('#ffffff');
+  });
+});
+
+describe('connectionUrl and token', () => {
+  it('asks for protocol 2 and adds the token only when set', () => {
+    expect(connectionUrl('ws://localhost:15721')).toBe('ws://localhost:15721/?protocol=2');
+    expect(connectionUrl('ws://pc:15721', ' s3cr3t ')).toBe('ws://pc:15721/?protocol=2&token=s3cr3t');
+  });
+
+  it('reads and writes the token in URLs and saved settings', () => {
+    expect(parseUrlOverrides('?token=abc', 'ws://localhost:15721')).toEqual({ token: 'abc' });
+    expect(buildOverlayUrl('http://x', '/timer', { ...DEFAULT_SETTINGS, token: 'abc' })).toBe('http://x/timer?token=abc&lang=pt-BR');
+    expect(sanitizeSettings({ token: ' abc ' }).token).toBe('abc');
+    expect(sanitizeSettings({ token: 42 }).token).toBe('');
   });
 });

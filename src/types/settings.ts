@@ -15,6 +15,8 @@ export interface Settings {
   /** Hides the settings button unless the pointer is over it (for stream overlays). */
   streamMode: boolean;
   wsUrl: string;
+  /** Token required by the component when set in its settings (protocol 2). */
+  token: string;
   chromaKey: {
     enabled: boolean;
   };

@@ -23,7 +23,7 @@ Antes de abrir um pull request, rode `npm run lint`, `npm run typecheck`, `npm t
 
 ## Testar sem o LiveSplit
 
-`scripts/mock-livesplit-server.mjs` imita o componente LiveSplit WebSocket Server: envia o estado ao conectar, a cada evento e a cada 15 segundos, e aceita os mesmos comandos.
+`scripts/mock-livesplit-server.mjs` imita o componente LiveSplit WebSocket Server 2.x. Ele fala o protocolo 2 com quem conecta com `?protocol=2` e o protocolo 1 com os demais, envia o estado ao conectar, a cada evento e a cada 15 segundos, e aceita os comandos usados pelo app.
 
 ```bash
 npm run mock:server -- --scale 0.05
@@ -35,6 +35,9 @@ npm run mock:server -- --scale 0.05
 | `--scale <n>` | Multiplica os tempos do PB e dos melhores segmentos; `0.05` gera uma run de menos de um minuto |
 | `--game-time` | Usa Game Time como método atual (3% mais lento que o Real Time) |
 | `--src` | Associa a run a um jogo e categoria do speedrun.com, para testar o recorde mundial |
+| `--token <token>` | Exige `?token=<token>`, como a opção **Token** do componente |
+| `--read-only` | Recusa os comandos de controle, como a opção **Read only** do componente |
+| `--legacy` | Imita o componente 1.x: só protocolo 1, ignorando `?protocol=2` |
 
 ## Arquitetura
 
@@ -63,30 +66,51 @@ Mantenha cálculos de tempo e regras de negócio em `src/lib/` e cubra-os com te
 
 ## Protocolo do LiveSplit WebSocket Server
 
-O componente ([código-fonte](https://github.com/alexmtos/LiveSplit.WebSocketServer)) escuta em `ws://<host>:15721/`.
+O componente ([código-fonte](https://github.com/alexmtos/LiveSplit.WebSocketServer), especificação em `docs/PROTOCOL.md`) escuta em `ws://<host>:15721/`. O app sempre conecta em `ws://<host>:<porta>/?protocol=2`, com `&token=<token>` quando há token:
 
-**Mensagens do servidor**, sempre em JSON:
+- O **componente 2.x** responde com o protocolo 2.
+- O **componente 1.x** ignora a query string e responde com o protocolo 1.
+
+O app descobre a versão pela primeira mensagem: `hello` significa protocolo 2, `{ open, state }` significa protocolo 1.
+
+### Protocolo 2
+
+Toda mensagem do servidor tem um `type`:
+
+| `type` | Quando | Uso no app |
+|--------|--------|------------|
+| `hello` | Ao conectar | Versões, `readOnly` e o estado inicial (sem ícones) |
+| `event` | A cada mudança: timer, comparação, método de tempo, pausa do Game Time, troca de splits… | Novo estado (sem ícones) |
+| `response` | Uma por requisição, com `ok` e, em caso de erro, `error.code` | Erros de comando; `unauthorized` indica token recusado |
+| `tick` | Só com `subscribe { tickMs }` | Não é assinado; é tratado caso chegue |
+
+O app envia requisições em JSON, `{ "id": 1, "action": "split" }`. Os comandos usados são: `starttimer`, `split`, `unsplit`, `skipsplit`, `togglepause`, `reset`, `setcomparison { comparison }`, `settimingmethod { method }`, `state { includeIcons }` e `ping`.
+
+Os eventos do protocolo 2 não trazem ícones. O app pede `state` com `includeIcons: true` depois do `hello` e dos eventos `run-changed` e `run-manually-modified`, guarda os ícones por posição e nome do split e os aplica aos estados seguintes (`withCachedIcons` em `src/lib/state.ts`).
+
+### Protocolo 1
 
 | Quando | Formato |
 |--------|---------|
 | Ao conectar | `{ "open": { "response": "success" }, "state": { … } }` |
-| A cada evento (start, split, pausa, reset, …) | `{ "action": { "action": "split", "data": null }, "state": { … } }` |
-| A cada 15 segundos | `{ "action": { "action": "refresh", "data": null }, "state": { … } }` |
+| A cada evento e a cada 15 segundos | `{ "action": { "action": "split", "data": null }, "state": { … } }` |
 | Resposta a `state` | `{ "response": { "response": "state" }, "state": { … } }` |
-| Resposta a `hi` | `{ "response": { "response": "hi" } }` |
 
-O formato de `state` está em `src/types/livesplit.ts`. Todos os tempos são milissegundos inteiros no formato `{ "realTime": n, "gameTime": n }`, com `null` quando não há tempo. O nome do jogo e da categoria ficam em `state.run`.
+Os comandos são enviados em texto puro (`split`, `pause`, `resume`, …) e não têm resposta.
 
-**Comandos do cliente**, em texto puro: `hi`, `state`, `starttimer`, `startorsplit`, `split`, `unsplit`, `skipsplit`, `pause`, `resume`, `reset`, `pausegametime`, `unpausegametime`.
+### Estado
 
-> **Aviso:** o servidor não responde aos comandos do servidor embutido do LiveSplit, como `getbestpossibletime` ou `getpredictedtime`. Os valores equivalentes são calculados em `src/lib/run.ts`.
+O formato de `state` está em `src/types/livesplit.ts` e é validado por `normalizeState` em `src/lib/state.ts`. Todos os tempos são milissegundos inteiros no formato `{ "realTime": n, "gameTime": n }`, com `null` quando não há tempo. O nome do jogo e da categoria ficam em `state.run`.
+
+> **Nota:** o componente 2.x também envia `currentDelta`, `predictedTime` e `bestPossibleTime`, calculados pelo LiveSplit no momento do evento. O app calcula os mesmos valores em `src/lib/run.ts`, porque precisa atualizá-los continuamente entre um evento e outro.
 
 ## Conexão
 
 - Tempo limite de conexão: 5 segundos.
 - Reconexão com espera crescente de 1 a 10 segundos. A espera volta ao início só depois que um estado é recebido.
-- Sem mensagens por 20 segundos, o app envia `hi`. Sem mensagens por 45 segundos, descarta a conexão e reconecta.
+- Sem mensagens por 20 segundos, o app envia `ping` (protocolo 2) ou `hi` (protocolo 1). Sem mensagens por 45 segundos, descarta a conexão e reconecta.
 - Se nenhum estado chegar em 4 segundos após conectar, o app pede `state`. Se ainda assim nada chegar, mostra o aviso de servidor incompatível.
+- Apenas no protocolo 1, durante uma run em Game Time, o app pede o estado a cada 3 segundos para acompanhar os loadings.
 
 ## Traduções
 

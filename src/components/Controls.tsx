@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Flag, Pause, Play, RotateCcw, SkipForward, Undo2 } from 'lucide-react';
+import { Flag, Lock, Pause, Play, RotateCcw, SkipForward, Undo2 } from 'lucide-react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useRunControls } from '@/contexts/RunControlsContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -18,7 +18,7 @@ const secondaryButton =
 /** `fill`: controls alone on the page (`/controls`), with large touch targets. */
 export function Controls({ fill = false }: { fill?: boolean }) {
   const { settings } = useSettings();
-  const { state } = useLiveSplit();
+  const { state, server } = useLiveSplit();
   const controls = useRunControls();
   const { t } = useI18n();
 
@@ -35,6 +35,21 @@ export function Controls({ fill = false }: { fill?: boolean }) {
     ) : (
       <Play size={size} fill="currentColor" />
     );
+
+  if (server?.readOnly) {
+    return (
+      <div
+        className={cn(
+          'flex shrink-0 items-center justify-center gap-2 border-b border-white/10 bg-black/20 px-4 text-xs text-[var(--text-dim)]',
+          fill ? 'flex-1 border-b-0 text-base' : 'h-[60px]',
+        )}
+        data-export-ignore
+      >
+        <Lock size={fill ? 18 : 14} />
+        {t('controls_read_only')}
+      </div>
+    );
+  }
 
   if (fill) {
     const big = 'flex items-center justify-center gap-3 rounded-xl border text-lg font-bold text-white transition-all disabled:opacity-30';
