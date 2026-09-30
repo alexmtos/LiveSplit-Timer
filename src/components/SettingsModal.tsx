@@ -35,7 +35,7 @@ function Switch({ checked, onChange, labelledBy }: { checked: boolean; onChange:
       onClick={onChange}
       className={cn(
         'relative h-6 w-11 shrink-0 rounded-full transition-colors',
-        checked ? 'bg-[var(--theme-accent)]' : 'bg-white/10',
+        checked ? 'bg-accent' : 'bg-white/10',
       )}
     >
       <span
@@ -109,7 +109,7 @@ function ConnectionSection() {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold uppercase tracking-wider text-[var(--theme-accent)]">{t('connection_title')}</h3>
+        <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('connection_title')}</h3>
         <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1.5" role="status">
           <span
             className={cn(
@@ -140,7 +140,7 @@ function ConnectionSection() {
               setHost(e.target.value);
               setResult('idle');
             }}
-            className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-all focus:border-[var(--theme-accent)] focus:outline-none"
+            className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-all focus:border-accent focus:outline-none"
           />
         </label>
         <label className="space-y-1.5">
@@ -154,13 +154,13 @@ function ConnectionSection() {
               setPort(e.target.value.replace(/\D/g, '').slice(0, 5));
               setResult('idle');
             }}
-            className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-all focus:border-[var(--theme-accent)] focus:outline-none"
+            className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-all focus:border-accent focus:outline-none"
           />
         </label>
         <button
           type="submit"
           disabled={result === 'testing'}
-          className="h-[38px] rounded-md border border-[var(--theme-accent)]/30 bg-[var(--theme-accent)]/15 px-4 text-xs font-bold text-[var(--theme-accent)] transition-all hover:bg-[var(--theme-accent)]/25 disabled:opacity-50"
+          className="h-[38px] rounded-md border border-accent/30 bg-accent/15 px-4 text-xs font-bold text-accent transition-all hover:bg-accent/25 disabled:opacity-50"
         >
           {result === 'testing' ? t('connection_testing') : t('connection_test')}
         </button>
@@ -234,7 +234,7 @@ function LanguagePicker() {
                 }}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-white/5',
-                  settings.language === lang.code && 'bg-[var(--theme-accent)]/15',
+                  settings.language === lang.code && 'bg-accent/15',
                 )}
               >
                 <span>{lang.flag}</span>
@@ -254,6 +254,8 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { exportCSV, exportImage, canExport } = useExport();
   const [exportFailed, setExportFailed] = useState(false);
   const [confirmResetAt, setConfirmResetAt] = useState<number | null>(null);
+  // Bumped on "reset settings" so the connection form reloads the default address.
+  const [formGeneration, setFormGeneration] = useState(0);
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
   const titleId = useId();
@@ -300,7 +302,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between border-b border-white/10 bg-black/30 p-5">
           <div className="flex items-center gap-4">
             <LanguagePicker />
-            <h2 id={titleId} className="text-xl font-bold text-[var(--theme-accent)]">
+            <h2 id={titleId} className="text-xl font-bold text-accent">
               {t('settings_title')}
             </h2>
           </div>
@@ -317,10 +319,10 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex-1 space-y-8 overflow-y-auto p-6">
-          <ConnectionSection />
+          <ConnectionSection key={formGeneration} />
 
           <section className="space-y-4">
-            <h3 className="text-base font-semibold uppercase tracking-wider text-[var(--theme-accent)]">{t('theme_title')}</h3>
+            <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('theme_title')}</h3>
             <div className="grid grid-cols-3 gap-3">
               {Object.entries(THEME_COLORS).map(([themeId, colors]) => (
                 <button
@@ -330,7 +332,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                   onClick={() => updateSettings({ theme: themeId })}
                   className={cn(
                     'relative flex h-14 flex-col items-center justify-center overflow-hidden rounded-lg border-2 transition-all',
-                    settings.theme === themeId ? 'border-[var(--theme-accent)]' : 'border-white/10 hover:border-white/30',
+                    settings.theme === themeId ? 'border-accent' : 'border-white/10 hover:border-white/30',
                   )}
                   style={{
                     background: `linear-gradient(135deg, ${colors.bg} 0%, ${colors.bg} 50%, ${colors.accent} 50%, ${colors.accent} 100%)`,
@@ -351,7 +353,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-base font-semibold uppercase tracking-wider text-[var(--theme-accent)]">{t('display_title')}</h3>
+            <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('display_title')}</h3>
             <div className="space-y-3">
               {TOGGLES.map((opt) => (
                 <SettingRow
@@ -366,11 +368,11 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           </section>
 
           <section className="space-y-4">
-            <h3 className="text-base font-semibold uppercase tracking-wider text-[var(--theme-accent)]">{t('export_title')}</h3>
+            <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('export_title')}</h3>
             <div className="space-y-4 rounded-lg border border-white/5 bg-white/[0.03] p-4">
               <div className="flex items-start gap-4">
                 <div className="rounded-lg bg-white/5 p-2">
-                  <FileText size={24} className="text-[var(--theme-accent)]" />
+                  <FileText size={24} className="text-accent" />
                 </div>
                 <div>
                   <h4 className="text-sm font-semibold text-white">{t('export_save')}</h4>
@@ -382,7 +384,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                   type="button"
                   disabled={!canExport}
                   onClick={async () => setExportFailed(!(await exportImage()))}
-                  className="flex items-center justify-center gap-2 rounded-md border border-[var(--theme-accent)]/30 bg-[var(--theme-accent)]/10 px-4 py-2.5 text-xs font-bold text-[var(--theme-accent)] transition-all hover:bg-[var(--theme-accent)]/20 disabled:opacity-40"
+                  className="flex items-center justify-center gap-2 rounded-md border border-accent/30 bg-accent/10 px-4 py-2.5 text-xs font-bold text-accent transition-all hover:bg-accent/20 disabled:opacity-40"
                 >
                   <ImageIcon size={16} />
                   {t('export_image')}
@@ -413,6 +415,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
             onClick={() => {
               if (confirmResetAt !== null) {
                 resetSettings();
+                setFormGeneration((n) => n + 1);
                 setConfirmResetAt(null);
               } else {
                 setConfirmResetAt(Date.now());

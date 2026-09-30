@@ -27,7 +27,7 @@ export function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
         href={record.url ?? undefined}
         target="_blank"
         rel="noopener noreferrer"
-        className="group flex min-w-0 items-center gap-1 transition-colors hover:text-[var(--theme-accent)]"
+        className="group flex min-w-0 items-center gap-1 transition-colors hover:text-accent"
       >
         <span className="truncate">
           {t('wr_display')}: {formatTime(record.timeMs)}
@@ -49,7 +49,7 @@ export function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
           onClick={onOpenSettings}
           aria-label={t('btn_settings')}
           title={t('btn_settings')}
-          className="relative flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[var(--text-dim)] transition-all hover:border-[var(--theme-accent)] hover:bg-[var(--theme-accent)]/10 hover:text-[var(--theme-accent)]"
+          className="relative flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[var(--text-dim)] transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
         >
           <SettingsIcon size={16} />
           {!isConnected && (
@@ -65,7 +65,7 @@ export function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
           <img src={run.gameIcon} alt="" className="h-9 w-9 shrink-0 rounded object-contain" />
         )}
         <div className="flex min-w-0 flex-col">
-          <h1 className="truncate text-base font-bold leading-tight text-[var(--theme-accent)]" title={run?.gameName}>
+          <h1 className="truncate text-base font-bold leading-tight text-accent" title={run?.gameName}>
             {run?.gameName || '-'}
           </h1>
           <p className="truncate font-mono text-[11px] tracking-tight text-[var(--text-dim)]" title={run?.categoryName}>

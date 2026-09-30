@@ -163,7 +163,11 @@ export interface CurrentDelta {
   isLive: boolean;
 }
 
-/** The delta shown next to the timer (LiveSplit's "Delta" component). */
+/**
+ * The delta shown next to the timer (LiveSplit's "Delta" component): the last
+ * split's delta, replaced by the live delta only once it is worse than that
+ * (or positive, before the first split).
+ */
 export function currentDelta(
   state: LiveSplitState,
   currentTime: number | null,
@@ -172,13 +176,15 @@ export function currentDelta(
 ): CurrentDelta | null {
   const segments = state.run.segments;
   if (state.timerState === 'NotRunning' || segments.length === 0) return null;
-  if (state.timerState === 'Ended') {
-    const final = splitDelta(segments[segments.length - 1], comparison, method);
-    return final === null ? null : { value: final, isLive: false };
+  const index = state.currentSplitIndex;
+  const last = lastSplitDelta(segments, index, comparison, method);
+  if (isRunActive(state.timerState) && currentTime !== null) {
+    const comp = comparisonTime(segments[index], comparison, method);
+    if (comp !== null) {
+      const live = currentTime - comp;
+      if (last === null ? live > 0 : live > last) return { value: live, isLive: true };
+    }
   }
-  const live = liveDelta(state, currentTime, comparison, method);
-  if (live !== null) return { value: live, isLive: true };
-  const last = lastSplitDelta(segments, state.currentSplitIndex, comparison, method);
   return last === null ? null : { value: last, isLive: false };
 }
 
@@ -245,11 +251,18 @@ export function segmentTime(segments: Segment[], index: number, method: TimingMe
   return split === null ? null : split - previousSplitTime(segments, index, method);
 }
 
+/** LiveSplit's CheckBestSegment, including the Best Segments check that covers skipped splits. */
 export function isBestSegment(segments: Segment[], index: number, method: TimingMethod): boolean {
   const current = segmentTime(segments, index, method);
   if (current === null) return false;
   const best = pickTime(segments[index].bestSegment, method);
-  return best === null || current < best;
+  if (best === null || current < best) return true;
+
+  const lookup = bestSegmentsLookup(segments, method);
+  const split = pickTime(segments[index].splitTime, method);
+  const comp = lookup(index);
+  if (split === null || comp === null) return false;
+  return split - comp - (lastDeltaWith(segments, index, lookup, method) ?? 0) < 0;
 }
 
 /** Colour category for a finished split, following LiveSplit's GetSplitColor. */
@@ -263,7 +276,8 @@ export function splitStatus(
   const delta = splitDelta(segments[index], comparison, method);
   if (delta === null) return 'neutral';
   const previous = lastSplitDelta(segments, index, comparison, method);
-  if (delta < 0) return previous !== null && delta > previous ? 'ahead-losing' : 'ahead-gaining';
+  // A tie counts as ahead, as in LiveSplit.
+  if (delta <= 0) return previous !== null && delta > previous ? 'ahead-losing' : 'ahead-gaining';
   return previous !== null && delta < previous ? 'behind-gaining' : 'behind-losing';
 }
 

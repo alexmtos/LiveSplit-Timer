@@ -34,8 +34,10 @@ export function useNow(active: boolean, intervalMs = 0): number {
 export function useRunClock(intervalMs = 0) {
   const { state, anchor, timingMethod } = useLiveSplit();
   const now = useNow(state?.timerState === 'Running', intervalMs);
+  // Before the start LiveSplit shows the run's start offset (e.g. -5.00 for a countdown).
+  const offset = state?.timerState === 'NotRunning' ? state.run.startingOffset : null;
   return {
-    displayTime: displayTime(anchor, timingMethod, now),
+    displayTime: offset ?? displayTime(anchor, timingMethod, now),
     currentTime: anchor ? extrapolateTime(anchor, timingMethod, now) : null,
   };
 }

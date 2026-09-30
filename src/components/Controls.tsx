@@ -46,7 +46,7 @@ export function Controls() {
             'flex h-11 min-w-[44px] items-center justify-center rounded-lg border px-3 text-white transition-all disabled:opacity-30',
             phase === 'Ended'
               ? 'border-red-500 bg-red-500'
-              : 'border-[var(--theme-accent)] bg-[var(--theme-accent)] hover:brightness-110',
+              : 'border-accent bg-accent hover:brightness-110',
           )}
         >
           {phase === 'Ended' ? (

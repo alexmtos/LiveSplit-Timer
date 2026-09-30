@@ -129,7 +129,7 @@ export function SplitsTable() {
         <div
           className={cn(
             'truncate',
-            row.isActive && 'text-[var(--theme-accent)]',
+            row.isActive && 'text-accent',
             row.isSubsplit && 'pl-4 text-xs',
             row.isSubsplit && !row.isActive && 'text-[var(--text-dim)]',
             row.isSkipped && 'italic opacity-60',
@@ -183,19 +183,19 @@ export function SplitsTable() {
                 <tr
                   onClick={settings.alwaysExpandedSplits ? undefined : () => toggle(key)}
                   className={cn(
-                    'h-8 border-b border-white/5 bg-[var(--theme-accent)]/5 transition-colors',
-                    !settings.alwaysExpandedSplits && 'cursor-pointer hover:bg-[var(--theme-accent)]/10',
+                    'h-8 border-b border-white/5 bg-accent/5 transition-colors',
+                    !settings.alwaysExpandedSplits && 'cursor-pointer hover:bg-accent/10',
                   )}
                   aria-expanded={expanded}
                 >
                   <td colSpan={columns - 2} className="px-3">
                     <div className="flex items-center gap-2">
                       {expanded ? (
-                        <ChevronDown size={14} className="shrink-0 text-[var(--theme-accent)]" />
+                        <ChevronDown size={14} className="shrink-0 text-accent" />
                       ) : (
-                        <ChevronRight size={14} className="shrink-0 text-[var(--theme-accent)]" />
+                        <ChevronRight size={14} className="shrink-0 text-accent" />
                       )}
-                      <span className="truncate text-xs font-bold uppercase tracking-wider text-[var(--theme-accent)]">
+                      <span className="truncate text-xs font-bold uppercase tracking-wider text-accent">
                         {group.section}
                       </span>
                     </div>

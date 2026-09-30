@@ -148,11 +148,12 @@ export function ComparisonGraph() {
   const points = state ? buildPoints(state, currentTime, comparison, timingMethod) : [];
   const signature = JSON.stringify(points);
 
+  // showGraph is a dependency because hiding and showing the graph mounts a new, blank canvas.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || size.width === 0 || size.height === 0) return;
     draw(canvas, size.width, size.height, JSON.parse(signature) as GraphPoint[]);
-  }, [signature, size]);
+  }, [signature, size, settings.showGraph]);
 
   if (!settings.showGraph) return null;
 

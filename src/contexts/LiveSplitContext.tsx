@@ -21,8 +21,12 @@ const IDLE_PING_MS = 20_000;
 const IDLE_RECONNECT_MS = 45_000;
 /** Time to wait for the first state before suspecting the wrong server. */
 const FIRST_STATE_TIMEOUT_MS = 4_000;
-/** Game time can pause without any event (load removal), so poll while it matters. */
-const GAME_TIME_SYNC_MS = 1_000;
+/**
+ * Game time can pause without any event (load removal), so poll while it
+ * matters. Every poll makes the server rebuild the whole state (icons
+ * included), so keep it modest.
+ */
+const GAME_TIME_SYNC_MS = 3_000;
 const WR_RETRY_MS = 60_000;
 
 export type WorldRecordStatus =
@@ -112,6 +116,9 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       if (message.kind !== 'state') return;
       if (!gotState) {
         gotState = true;
+        // Only a working session resets the backoff: a server that accepts and
+        // immediately drops connections must not be retried every second.
+        attempt = 0;
         update('connected', false);
       }
       const next = message.state;
@@ -156,7 +163,6 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
       }, CONNECT_TIMEOUT_MS);
 
       current.onopen = () => {
-        attempt = 0;
         lastMessageAt = performance.now();
         update('connected');
         // The server sends the state on connect; if it doesn't, ask once and
@@ -181,8 +187,19 @@ export function LiveSplitProvider({ children }: { children: React.ReactNode }) {
     const watchdog = setInterval(() => {
       if (!socket || socket.readyState !== WebSocket.OPEN) return;
       const idle = performance.now() - lastMessageAt;
-      if (idle > IDLE_RECONNECT_MS) socket.close();
-      else if (idle > IDLE_PING_MS) socket.send('hi');
+      if (idle > IDLE_RECONNECT_MS) {
+        // A peer that vanished (sleep, cable) can take a minute to finish the
+        // close handshake; drop the socket and reconnect right away instead.
+        const dead = socket;
+        dead.onopen = dead.onmessage = dead.onclose = null;
+        dead.close();
+        if (socketRef.current === dead) socketRef.current = null;
+        socket = null;
+        update('disconnected');
+        scheduleReconnect();
+      } else if (idle > IDLE_PING_MS) {
+        socket.send('hi');
+      }
     }, 5_000);
 
     open();

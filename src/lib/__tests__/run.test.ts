@@ -103,6 +103,28 @@ describe('currentDelta', () => {
   it('is null before the run starts', () => {
     expect(currentDelta(state(pbRun(), { phase: 'NotRunning', index: -1 }), 0, 'Personal Best', 'RealTime')).toBeNull();
   });
+
+  it('keeps the last delta while the live delta is better, even if slower than the best segment', () => {
+    // PB B segment 60s, gold 50s; 30s ahead at A, 52s into B.
+    const segs = [segment('A', { pb: 100_000, best: 90_000 }), segment('B', { pb: 160_000, best: 50_000 })];
+    segs[0].splitTime.realTime = 70_000;
+    const s = state(segs, { index: 1 });
+    expect(currentDelta(s, 122_000, 'Personal Best', 'RealTime')).toEqual({ value: -30_000, isLive: false });
+  });
+
+  it('keeps a larger previous deficit instead of the smaller live one', () => {
+    const segs = pbRun();
+    segs[0].splitTime.realTime = 20_000; // +10.0
+    const s = state(segs, { index: 1 });
+    expect(currentDelta(s, 30_000, 'Personal Best', 'RealTime')).toEqual({ value: 10_000, isLive: false });
+    expect(currentDelta(s, 37_000, 'Personal Best', 'RealTime')).toEqual({ value: 12_000, isLive: true });
+  });
+
+  it('shows a positive live delta before the first split', () => {
+    const s = state(pbRun(), { index: 0 });
+    expect(currentDelta(s, 11_000, 'Personal Best', 'RealTime')).toEqual({ value: 1_000, isLive: true });
+    expect(currentDelta(s, 5_000, 'Personal Best', 'RealTime')).toBeNull();
+  });
 });
 
 describe('currentPace and bestPossibleTime', () => {
@@ -175,6 +197,19 @@ describe('splitStatus (LiveSplit split colours)', () => {
     expect(splitStatus(segs, 0, 'Personal Best', 'RealTime')).toBe('ahead-gaining');
     expect(splitStatus(segs, 1, 'Personal Best', 'RealTime')).toBe('ahead-losing');
     expect(splitStatus(segs, 2, 'Personal Best', 'RealTime')).toBe('behind-losing');
+  });
+
+  it('marks gold against Best Segments after a skipped split', () => {
+    const segs = [segment('A', { pb: 12_000, best: 10_000 }), segment('B', { pb: 24_000, best: 10_000 })];
+    segs[1].splitTime.realTime = 19_000; // A skipped; A+B in 19s beats 10s + 10s
+    expect(splitStatus(segs, 1, 'Personal Best', 'RealTime')).toBe('gold');
+  });
+
+  it('treats an exact tie as ahead', () => {
+    const segs = pbRun();
+    segs[0].splitTime.realTime = 9_500; // -0.5
+    segs[1].splitTime.realTime = 25_000; // 0.0, losing vs -0.5
+    expect(splitStatus(segs, 1, 'Personal Best', 'RealTime')).toBe('ahead-losing');
   });
 
   it('marks behind-gaining when the deficit shrinks', () => {

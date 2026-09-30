@@ -29,7 +29,8 @@ const RunControlsContext = createContext<RunControls | undefined>(undefined);
 export function RunControlsProvider({ children }: { children: React.ReactNode }) {
   const { state, isConnected, sendCommand, endedAt } = useLiveSplit();
   const [unlockedEnd, setUnlockedEnd] = useState<number | null>(null);
-  const [armedAt, setArmedAt] = useState<number | null>(null);
+  // The first reset press only counts for the attempt it was made in.
+  const [armed, setArmed] = useState<{ at: number; attempt: string } | null>(null);
 
   useEffect(() => {
     if (endedAt === null) return;
@@ -38,12 +39,14 @@ export function RunControlsProvider({ children }: { children: React.ReactNode })
   }, [endedAt]);
 
   useEffect(() => {
-    if (armedAt === null) return;
-    const id = setTimeout(() => setArmedAt(null), RESET_CONFIRM_MS);
+    if (armed === null) return;
+    const id = setTimeout(() => setArmed(null), RESET_CONFIRM_MS);
     return () => clearTimeout(id);
-  }, [armedAt]);
+  }, [armed]);
 
   const phase = state?.timerState ?? 'NotRunning';
+  const attempt = `${state?.run.attemptCount ?? ''}|${state?.attemptStarted ?? ''}`;
+  const isArmed = armed !== null && armed.attempt === attempt;
   const index = state?.currentSplitIndex ?? -1;
   const segmentCount = state?.run.segments.length ?? 0;
   const ready = isConnected && segmentCount > 0;
@@ -80,13 +83,13 @@ export function RunControlsProvider({ children }: { children: React.ReactNode })
 
   const requestReset = useCallback(() => {
     if (!canReset) return;
-    if (phase === 'Ended' || armedAt !== null) {
-      setArmedAt(null);
+    if (phase === 'Ended' || isArmed) {
+      setArmed(null);
       sendCommand('reset');
     } else {
-      setArmedAt(performance.now());
+      setArmed({ at: performance.now(), attempt });
     }
-  }, [canReset, phase, armedAt, sendCommand]);
+  }, [canReset, phase, isArmed, attempt, sendCommand]);
 
   const value = useMemo<RunControls>(
     () => ({
@@ -95,14 +98,14 @@ export function RunControlsProvider({ children }: { children: React.ReactNode })
       canSkip,
       canUndo,
       canReset,
-      resetArmed: armedAt !== null && canReset && phase !== 'Ended',
+      resetArmed: isArmed && canReset && phase !== 'Ended',
       primary,
       togglePause,
       skip,
       undo,
       requestReset,
     }),
-    [canPrimary, canTogglePause, canSkip, canUndo, canReset, armedAt, phase, primary, togglePause, skip, undo, requestReset],
+    [canPrimary, canTogglePause, canSkip, canUndo, canReset, isArmed, phase, primary, togglePause, skip, undo, requestReset],
   );
 
   return <RunControlsContext.Provider value={value}>{children}</RunControlsContext.Provider>;

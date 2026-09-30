@@ -8,8 +8,9 @@ function isTypingTarget(target: EventTarget | null) {
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
 }
 
+/** Elements that Space activates natively (links are not among them). */
 function isActivatable(target: EventTarget | null) {
-  return target instanceof HTMLElement && ['BUTTON', 'A', 'SUMMARY'].includes(target.tagName);
+  return target instanceof HTMLElement && ['BUTTON', 'SUMMARY'].includes(target.tagName);
 }
 
 /**
