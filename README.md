@@ -1,74 +1,56 @@
 # LiveSplit Timer
 
-Overlay web para o [LiveSplit](https://livesplit.org/) feito com Next.js, TypeScript e Tailwind CSS: timer em tempo real, tabela de splits com seções, gráfico de comparação, previsões e recorde mundial do speedrun.com. Funciona como fonte de navegador no OBS, numa segunda tela ou como controle remoto no celular/tablet.
+LiveSplit Timer é um overlay web para o [LiveSplit](https://livesplit.org/). Ele mostra o timer, os splits, um gráfico de comparação e previsões da sua run em tempo real, e pode ser usado como fonte de navegador no OBS, numa segunda tela ou como controle remoto no celular.
 
-## Requisitos
+O app segue o que está configurado no LiveSplit: método de tempo (Real Time ou Game Time), comparação selecionada, subsplits e seções. Ele recebe os dados pelo componente [LiveSplit WebSocket Server](https://github.com/alexmtos/LiveSplit.WebSocketServer).
 
-- Node.js 22 (mínimo 20.9 para rodar o app; os testes usam Vitest 5, que exige 22.12+).
-- LiveSplit com o componente **LiveSplit WebSocket Server** ([alexmtos/LiveSplit.WebSocketServer](https://github.com/alexmtos/LiveSplit.WebSocketServer)).
+## O que você pode fazer
 
-> ⚠️ Não é o "LiveSplit Server" embutido do LiveSplit (TCP/WebSocket na porta 16834): ele usa outro protocolo e não envia o estado do timer. Se o app conectar mas não mostrar dados, ele avisa na tela.
+- Exibir timer, delta ao vivo, splits com cores de gold / ganhando / perdendo tempo e gráfico da run.
+- Ver o melhor tempo ainda possível e a previsão do tempo final, atualizados durante a run.
+- Mostrar o recorde mundial do speedrun.com para a categoria e subcategoria da run.
+- Colocar o overlay inteiro ou cada seção separada no OBS, com fundo transparente.
+- Controlar o timer pelo teclado ou por uma página de controle remoto com botões grandes.
+- Exportar a run como imagem PNG ou planilha CSV.
 
-### Configurando o LiveSplit
+## Início rápido
+
+### Pré-requisitos
+
+- Node.js 22 (a versão mínima para rodar o app é 20.9).
+- LiveSplit com o componente LiveSplit WebSocket Server instalado.
+
+> **Nota:** o app não funciona com o servidor embutido do LiveSplit (*Control → Start TCP Server* ou *Start WebSocket Server*, porta 16834). Ele usa outro protocolo e não envia o estado do timer.
+
+### 1. Configure o LiveSplit
 
 1. Copie `LiveSplit.WebSocketServer.dll` e `websocket-sharp.dll` para a pasta `Components` do LiveSplit.
-2. Em *Edit Layout* → `+` → *Control* → **LiveSplit WebSocket Server**. Nas configurações do componente você pode mudar a porta (padrão **15721**) e ligar o *Auto Start*.
-3. Se o *Auto Start* estiver desligado: clique com o botão direito no LiveSplit → *Control* → **Start WebSocket Server**.
+2. No LiveSplit, abra *Edit Layout*, clique em **+** e escolha *Control → LiveSplit WebSocket Server*.
+3. Nas configurações do componente, ative **Auto Start**. A porta padrão é `15721`.
 
-## Uso
+Se você não ativar o Auto Start, inicie o servidor manualmente: clique com o botão direito no LiveSplit e escolha *Control → Start WebSocket Server*.
+
+### 2. Instale e inicie o app
 
 ```bash
 npm install
-npm run dev          # http://localhost:3000
-```
-
-Produção:
-
-```bash
 npm run build
 npm start
 ```
 
-Abra a engrenagem no canto superior direito para configurar IP/porta (botão **Testar & Salvar**), tema, modo transparente, seções visíveis, atalhos e idioma. As configurações ficam salvas no navegador.
+### 3. Abra o overlay
 
-### No OBS
+Acesse [http://localhost:3000](http://localhost:3000). O nome do jogo e os splits aparecem assim que o app se conecta ao LiveSplit.
 
-Adicione uma **Fonte de navegador** apontando para `http://localhost:3000`, ligue o **Modo Transparente** nas configurações (use *Interagir* na fonte para abrir a engrenagem). A largura de ~450 px funciona bem.
+Se o LiveSplit estiver em outro computador, clique na engrenagem no canto superior direito, informe o IP e a porta e clique em **Testar & Salvar**.
 
-> A página precisa ser servida por `http://`: navegadores bloqueiam `ws://` a partir de páginas `https://`.
+## Próximos passos
 
-### Atalhos de teclado (na página)
-
-| Tecla | Ação |
-|-------|------|
-| Espaço | Iniciar / split / continuar / resetar após o fim (1 s de proteção) |
-| P | Pausar / continuar |
-| U | Desfazer split |
-| K | Pular split |
-| R | Resetar (pressione duas vezes para confirmar) |
-
-Os atalhos globais do próprio LiveSplit continuam funcionando normalmente; estes servem para usar a página como controle remoto e podem ser desligados nas configurações.
-
-## Funcionalidades
-
-- **Segue o LiveSplit**: usa o método de tempo (Real Time / Game Time, com indicador IGT) e a comparação selecionados no LiveSplit.
-- **Delta ao vivo** com as mesmas regras do LiveSplit (aparece quando você fica atrás, perde tempo no segmento ou passa do melhor segmento).
-- **Tabela de splits** com subsplits (`-Nome`) e seções (`{Seção}Nome`), tempo/delta por seção, ícones, splits pulados e cores de gold / ganhando / perdendo tempo.
-- **Gráfico de comparação** do delta ao longo da run.
-- **Previsões**: Tempo Ideal (melhor tempo ainda possível) e Previsão Atual (ritmo atual), calculados localmente.
-- **Recorde mundial** do speedrun.com, respeitando as subcategorias da run (com cache de 30 min).
-- **Exportação** em PNG (com o tema atual) e CSV (separado por `;`, compatível com Excel).
-- **11 temas**, **modo transparente** para OBS e **5 idiomas** (PT-BR, EN-US, FR, DE, ES).
-
-## Desenvolvimento
-
-```bash
-npm run mock:server -- --scale 0.05   # LiveSplit.WebSocketServer falso em ws://localhost:15721
-npm run lint
-npm run typecheck
-npm test
-```
-
-O servidor falso (`scripts/mock-livesplit-server.mjs`) aceita `--port`, `--scale` (multiplica os tempos do PB), `--game-time` (Game Time como método atual) e `--src` (vincula a run a um jogo do speedrun.com).
-
-A lógica de tempo fica em módulos puros em `src/lib/` (`run.ts`, `time.ts`, `state.ts`, `speedrun.ts`) cobertos por testes Vitest; os componentes React só renderizam.
+| Guia | Quando usar |
+|------|-------------|
+| [Usar no OBS](docs/usar-no-obs.md) | Colocar o overlay na sua live, com fundo transparente ou uma fonte por seção |
+| [Usar como controle remoto](docs/controle-remoto.md) | Controlar o timer pelo celular, tablet ou outra tela |
+| [Referência de configurações](docs/referencia.md) | Todas as opções, parâmetros de URL, páginas e atalhos de teclado |
+| [Como os tempos são calculados](docs/como-funciona.md) | Entender deltas, previsões, cores e o recorde mundial |
+| [Solução de problemas](docs/solucao-de-problemas.md) | O app não conecta, não mostra dados ou mostra tempos diferentes do LiveSplit |
+| [Desenvolvimento](docs/desenvolvimento.md) | Rodar o projeto localmente, testar e entender a arquitetura |

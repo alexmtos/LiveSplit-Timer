@@ -8,9 +8,28 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## Project notes
+# LiveSplit Timer
 
-- The app talks to the **LiveSplit.WebSocketServer** component (default `ws://localhost:15721`), not LiveSplit's built-in TCP/WebSocket server. The server pushes `{ state }` JSON on every timer event and every 15 s; see `src/types/livesplit.ts` for the payload and the accepted commands.
-- Times on the wire are integer milliseconds per timing method (`{ realTime, gameTime }`). Always go through `src/lib/run.ts` helpers so the current timing method and comparison chosen in LiveSplit are respected.
-- Keep time/run math in pure modules under `src/lib/` and cover it with Vitest (`npm test`).
-- Checks: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`. `npm run mock:server` starts a fake LiveSplit server for local development.
+Web overlay for LiveSplit (Next.js 16 App Router, React 19, TypeScript, Tailwind CSS v3). Everything runs in the browser; pages are statically prerendered. User docs are in Portuguese under `docs/`.
+
+## Commands
+
+- `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`: run all four before committing.
+- `npm run mock:server -- --scale 0.05`: fake LiveSplit server on `ws://localhost:15721` (`--game-time`, `--src`, `--port`).
+- `npm run dev`: dev server on port 3000.
+
+## Code map
+
+- `src/lib/`: pure logic, covered by Vitest in `src/lib/__tests__/`. `run.ts` (LiveSplit's delta, prediction, colour and subsplit rules), `state.ts` (server message validation), `speedrun.ts`, `settings.ts` (defaults, URL parameters), `time.ts`.
+- `src/contexts/`: `SettingsContext` (saved settings plus non-persisted URL overrides), `LiveSplitContext` (WebSocket lifecycle, state, world record), `RunControlsContext` (button and hotkey rules).
+- `src/components/Overlay.tsx`: renders `/` and the single-section pages from `src/app/[view]/page.tsx`.
+
+## Rules
+
+- The server is the **LiveSplit.WebSocketServer** component, not LiveSplit's built-in server. It pushes `{ state }` on connect, on every event and every 15 s, and ignores `getbestpossibletime`/`getpredictedtime`. The payload is typed in `src/types/livesplit.ts`; the source of truth is `JsonState.cs` in alexmtos/LiveSplit.WebSocketServer.
+- Times are integer milliseconds per timing method (`{ realTime, gameTime }`). Read them through `pickTime`/`comparisonTime` in `src/lib/run.ts` with the context's `timingMethod` and `comparison`. Never hard-code `realTime` or `"Personal Best"`.
+- When changing run math, match LiveSplit's C# (`LiveSplitStateHelper`, `DeltaComponent`, `RunPrediction`) and add a test.
+- Every user-facing string goes in `src/lib/translations.ts` for all five languages. `typecheck` fails when a key is missing.
+- Tailwind v3 cannot apply opacity to `var()` colours. Use the `accent` colour (`bg-accent/15`), not `bg-[var(--theme-accent)]/15`.
+- Control buttons call `preventDefault` on `mousedown` so a later Space press splits instead of re-clicking the focused button. Keep this for new buttons.
+- User documentation follows Anthropic docs style: sentence-case headings, second person, task-oriented steps, tables for reference, `> **Nota:**` callouts, no emoji. Update `docs/` when behaviour or options change.
