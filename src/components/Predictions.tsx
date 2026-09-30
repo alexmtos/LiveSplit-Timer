@@ -3,17 +3,31 @@
 import React from 'react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useI18n } from '@/hooks/useI18n';
-import { formatTime } from '@/hooks/useTimer';
+import { useRunClock } from '@/hooks/useRunClock';
+import { bestPossibleTime, currentPace, pickTime } from '@/lib/run';
+import { formatTime } from '@/lib/time';
+import { cn } from '@/lib/utils';
 
+/**
+ * Best possible time and predicted time, computed locally: the WebSocket
+ * server does not answer LiveSplit Server's "getbestpossibletime" /
+ * "getpredictedtime" commands.
+ */
 export function Predictions() {
   const { t } = useI18n();
-  const { bestPossibleTime, predictedTime } = useLiveSplit();
+  const { state, comparison, timingMethod } = useLiveSplit();
+  const { currentTime } = useRunClock(100);
 
-  const format = (ms: number | null) => {
-    if (ms === null) return '-';
-    const f = formatTime(ms);
-    return `${f.timePart}.${f.msPart}`;
-  };
+  const best = state ? bestPossibleTime(state, currentTime, timingMethod) : null;
+  const predicted = state ? currentPace(state, currentTime, comparison, timingMethod) : null;
+  const segments = state?.run.segments ?? [];
+  const pb = pickTime(segments[segments.length - 1]?.personalBest, timingMethod);
+  const predictedClass =
+    predicted === null || pb === null || state?.timerState === 'NotRunning'
+      ? 'text-white'
+      : predicted <= pb
+        ? 'text-green-500'
+        : 'text-red-500';
 
   return (
     <div className="shrink-0 border-b border-white/10 bg-black/20 p-3 px-5">
@@ -22,17 +36,13 @@ export function Predictions() {
           <span className="text-[10px] font-medium uppercase tracking-widest text-[var(--text-dim)]">
             {t('prediction_best_possible')}
           </span>
-          <span className="font-mono text-2xl font-bold text-green-500">
-            {format(bestPossibleTime)}
-          </span>
+          <span className="font-mono text-2xl font-bold tabular-nums text-amber-300">{formatTime(best)}</span>
         </div>
         <div className="flex flex-col items-center text-center">
           <span className="text-[10px] font-medium uppercase tracking-widest text-[var(--text-dim)]">
             {t('prediction_predicted')}
           </span>
-          <span className="font-mono text-2xl font-bold text-white">
-            {format(predictedTime)}
-          </span>
+          <span className={cn('font-mono text-2xl font-bold tabular-nums', predictedClass)}>{formatTime(predicted)}</span>
         </div>
       </div>
     </div>

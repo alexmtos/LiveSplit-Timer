@@ -1,34 +1,67 @@
 'use client';
 
-import { useLiveSplit } from '@/contexts/LiveSplitContext';
-import { useHotkeys } from 'react-hotkeys-hook';
+import { useEffect, useRef } from 'react';
+import { useRunControls } from '@/contexts/RunControlsContext';
 
-export function useLiveSplitHotkeys() {
-  const { sendCommand, isConnected, runData } = useLiveSplit();
-  const timerState = runData?.timerState || 'NotRunning';
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false;
+  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName);
+}
 
-  useHotkeys('space', (e) => {
-    e.preventDefault();
-    if (!isConnected) return;
-    if (timerState === 'Ended') sendCommand('reset');
-    else if (timerState === 'Running') sendCommand('split');
-    else if (timerState === 'Paused') sendCommand('resume');
-    else sendCommand('starttimer');
-  }, [isConnected, timerState, sendCommand]);
+/** Elements that Space activates natively (links are not among them). */
+function isActivatable(target: EventTarget | null) {
+  return target instanceof HTMLElement && ['BUTTON', 'SUMMARY'].includes(target.tagName);
+}
 
-  useHotkeys('r', () => {
-    if (isConnected && confirm('Reset timer?')) sendCommand('reset');
-  }, [isConnected, sendCommand]);
+/**
+ * Page-level shortcuts, mainly for using the overlay as a remote control.
+ * LiveSplit's own global hotkeys keep working independently of these.
+ */
+export function useLiveSplitHotkeys(enabled: boolean) {
+  const controls = useRunControls();
+  const controlsRef = useRef(controls);
 
-  useHotkeys('p', () => {
-    if (isConnected && timerState === 'Running') sendCommand('pause');
-  }, [isConnected, timerState, sendCommand]);
+  useEffect(() => {
+    controlsRef.current = controls;
+  }, [controls]);
 
-  useHotkeys('u', () => {
-    if (isConnected) sendCommand('unsplit');
-  }, [isConnected, sendCommand]);
+  useEffect(() => {
+    if (!enabled) return;
 
-  useHotkeys('k', () => {
-    if (isConnected) sendCommand('skipsplit');
-  }, [isConnected, sendCommand]);
+    const onKeyDown = (event: KeyboardEvent) => {
+      // Holding a key auto-repeats keydown; one press must be one command.
+      if (event.repeat || event.defaultPrevented) return;
+      if (event.ctrlKey || event.altKey || event.metaKey) return;
+      if (isTypingTarget(event.target)) return;
+
+      const c = controlsRef.current;
+      if (event.code === 'Space') {
+        // Space on a focused button already clicks it.
+        if (isActivatable(event.target)) return;
+        event.preventDefault();
+        c.primary();
+        return;
+      }
+      switch (event.key.toLowerCase()) {
+        case 'p':
+          c.togglePause();
+          break;
+        case 'u':
+          c.undo();
+          break;
+        case 'k':
+          c.skip();
+          break;
+        case 'r':
+          c.requestReset();
+          break;
+        default:
+          return;
+      }
+      event.preventDefault();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [enabled]);
 }

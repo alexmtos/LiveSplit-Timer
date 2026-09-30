@@ -1,64 +1,89 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Settings } from '@/types';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { Settings } from '@/types';
+import {
+  DEFAULT_SETTINGS,
+  SETTINGS_STORAGE_KEY,
+  detectLanguage,
+  parseUrlOverrides,
+  sanitizeSettings,
+} from '@/lib/settings';
 
 interface SettingsContextType {
+  /** Effective settings: saved settings with the page URL's overrides on top. */
   settings: Settings;
+  /** Settings keys currently forced by the page URL (not saved). */
+  overriddenKeys: (keyof Settings)[];
+  /** False until the saved settings have been read from localStorage. */
+  isLoaded: boolean;
   updateSettings: (updates: Partial<Settings>) => void;
   resetSettings: () => void;
 }
 
-const DEFAULT_SETTINGS: Settings = {
-  language: 'pt-BR',
-  theme: 'default',
-  showGraph: true,
-  showTable: true,
-  showControls: true,
-  alwaysExpandedSplits: false,
-  wsUrl: 'ws://localhost:15721',
-  chromaKey: {
-    enabled: false,
-  },
-};
-
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+function browserLanguage() {
+  return detectLanguage(typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language]);
+}
+
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [saved, setSaved] = useState<Settings>(DEFAULT_SETTINGS);
+  const [overrides, setOverrides] = useState<Partial<Settings>>({});
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('livesplit-settings');
-    if (saved) {
-      try {
-        setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
-      } catch (e) {
-        console.error('Failed to parse settings', e);
-      }
+    let stored: unknown = null;
+    try {
+      const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      stored = raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      console.error('Failed to read saved settings', error);
     }
+    const loaded = sanitizeSettings(stored, browserLanguage());
+    // localStorage and the URL are only available on the client; this runs once on mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSaved(loaded);
+    setOverrides(parseUrlOverrides(window.location.search, loaded.wsUrl));
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('livesplit-settings', JSON.stringify(settings));
+    if (!isLoaded) return;
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(saved));
+    } catch (error) {
+      console.error('Failed to save settings', error);
     }
-  }, [settings, isLoaded]);
+  }, [saved, isLoaded]);
 
-  const updateSettings = (updates: Partial<Settings>) => {
-    setSettings((prev) => ({ ...prev, ...updates }));
-  };
+  const updateSettings = useCallback((updates: Partial<Settings>) => {
+    setSaved((prev) => ({ ...prev, ...updates }));
+    // A change made in the settings panel wins over the URL for this page.
+    setOverrides((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(updates) as (keyof Settings)[]) delete next[key];
+      return next;
+    });
+  }, []);
 
-  const resetSettings = () => {
-    setSettings(DEFAULT_SETTINGS);
-  };
+  const resetSettings = useCallback(() => {
+    setSaved({ ...DEFAULT_SETTINGS, language: browserLanguage() });
+    setOverrides({});
+  }, []);
 
-  return (
-    <SettingsContext.Provider value={{ settings, updateSettings, resetSettings }}>
-      {children}
-    </SettingsContext.Provider>
+  const value = useMemo(
+    () => ({
+      settings: { ...saved, ...overrides },
+      overriddenKeys: Object.keys(overrides) as (keyof Settings)[],
+      isLoaded,
+      updateSettings,
+      resetSettings,
+    }),
+    [saved, overrides, isLoaded, updateSettings, resetSettings],
   );
+
+  return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 
 export function useSettings() {
