@@ -2,10 +2,19 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Settings } from '@/types';
-import { DEFAULT_SETTINGS, SETTINGS_STORAGE_KEY, detectLanguage, sanitizeSettings } from '@/lib/settings';
+import {
+  DEFAULT_SETTINGS,
+  SETTINGS_STORAGE_KEY,
+  detectLanguage,
+  parseUrlOverrides,
+  sanitizeSettings,
+} from '@/lib/settings';
 
 interface SettingsContextType {
+  /** Effective settings: saved settings with the page URL's overrides on top. */
   settings: Settings;
+  /** Settings keys currently forced by the page URL (not saved). */
+  overriddenKeys: (keyof Settings)[];
   /** False until the saved settings have been read from localStorage. */
   isLoaded: boolean;
   updateSettings: (updates: Partial<Settings>) => void;
@@ -19,43 +28,59 @@ function browserLanguage() {
 }
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [saved, setSaved] = useState<Settings>(DEFAULT_SETTINGS);
+  const [overrides, setOverrides] = useState<Partial<Settings>>({});
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    let saved: unknown = null;
+    let stored: unknown = null;
     try {
       const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
-      saved = raw ? JSON.parse(raw) : null;
+      stored = raw ? JSON.parse(raw) : null;
     } catch (error) {
       console.error('Failed to read saved settings', error);
     }
-    // Reading localStorage has to wait for the client; this runs once on mount.
+    const loaded = sanitizeSettings(stored, browserLanguage());
+    // localStorage and the URL are only available on the client; this runs once on mount.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSettings(sanitizeSettings(saved, browserLanguage()));
+    setSaved(loaded);
+    setOverrides(parseUrlOverrides(window.location.search, loaded.wsUrl));
     setIsLoaded(true);
   }, []);
 
   useEffect(() => {
     if (!isLoaded) return;
     try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(saved));
     } catch (error) {
       console.error('Failed to save settings', error);
     }
-  }, [settings, isLoaded]);
+  }, [saved, isLoaded]);
 
   const updateSettings = useCallback((updates: Partial<Settings>) => {
-    setSettings((prev) => ({ ...prev, ...updates }));
+    setSaved((prev) => ({ ...prev, ...updates }));
+    // A change made in the settings panel wins over the URL for this page.
+    setOverrides((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(updates) as (keyof Settings)[]) delete next[key];
+      return next;
+    });
   }, []);
 
   const resetSettings = useCallback(() => {
-    setSettings({ ...DEFAULT_SETTINGS, language: browserLanguage() });
+    setSaved({ ...DEFAULT_SETTINGS, language: browserLanguage() });
+    setOverrides({});
   }, []);
 
   const value = useMemo(
-    () => ({ settings, isLoaded, updateSettings, resetSettings }),
-    [settings, isLoaded, updateSettings, resetSettings],
+    () => ({
+      settings: { ...saved, ...overrides },
+      overriddenKeys: Object.keys(overrides) as (keyof Settings)[],
+      isLoaded,
+      updateSettings,
+      resetSettings,
+    }),
+    [saved, overrides, isLoaded, updateSettings, resetSettings],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

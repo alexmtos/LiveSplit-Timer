@@ -86,9 +86,7 @@ export function SplitsTable() {
     if (rowTop < container.scrollTop || rowBottom > container.scrollTop + container.clientHeight) {
       container.scrollTo({ top: Math.max(0, rowTop - container.clientHeight / 2 + row.offsetHeight / 2), behavior: 'smooth' });
     }
-  }, [currentIndex, segmentCount, settings.showTable]);
-
-  if (!settings.showTable) return null;
+  }, [currentIndex, segmentCount]);
 
   if (!state || state.run.segments.length === 0) {
     return (

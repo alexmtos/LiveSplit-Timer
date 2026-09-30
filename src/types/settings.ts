@@ -4,13 +4,31 @@ export type Language = (typeof LANGUAGES)[number];
 export interface Settings {
   language: Language;
   theme: string;
+  showHeader: boolean;
+  showTimer: boolean;
+  showPredictions: boolean;
+  showControls: boolean;
   showGraph: boolean;
   showTable: boolean;
-  showControls: boolean;
   alwaysExpandedSplits: boolean;
   hotkeysEnabled: boolean;
+  /** Hides the settings button unless the pointer is over it (for stream overlays). */
+  streamMode: boolean;
   wsUrl: string;
   chromaKey: {
     enabled: boolean;
   };
 }
+
+/** Sections of the overlay; each one can be hidden or served alone on its own route. */
+export const OVERLAY_SECTIONS = ['header', 'timer', 'predictions', 'controls', 'graph', 'splits'] as const;
+export type OverlaySection = (typeof OVERLAY_SECTIONS)[number];
+
+export const SECTION_SETTING: Record<OverlaySection, keyof Settings> = {
+  header: 'showHeader',
+  timer: 'showTimer',
+  predictions: 'showPredictions',
+  controls: 'showControls',
+  graph: 'showGraph',
+  splits: 'showTable',
+};

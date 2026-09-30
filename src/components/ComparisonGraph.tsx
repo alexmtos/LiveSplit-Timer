@@ -2,11 +2,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
-import { useSettings } from '@/contexts/SettingsContext';
 import { useRunClock } from '@/hooks/useRunClock';
 import { STATUS_HEX } from '@/lib/colors';
 import { liveDelta, splitDelta, splitStatus } from '@/lib/run';
 import { formatDelta } from '@/lib/time';
+import { cn } from '@/lib/utils';
 import type { LiveSplitState, TimingMethod } from '@/types';
 
 interface GraphPoint {
@@ -125,9 +125,9 @@ function draw(canvas: HTMLCanvasElement, width: number, height: number, points: 
   ctx.fillText(text, boxX + boxWidth / 2, boxY + boxHeight / 2 + 0.5);
 }
 
-export function ComparisonGraph() {
+/** `fill`: the graph is alone on the page (`/graph`) and takes all the space. */
+export function ComparisonGraph({ fill = false }: { fill?: boolean }) {
   const { state, comparison, timingMethod } = useLiveSplit();
-  const { settings } = useSettings();
   // 10 fps is plenty for the live point and keeps the canvas work cheap.
   const { currentTime } = useRunClock(100);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -143,22 +143,19 @@ export function ComparisonGraph() {
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [settings.showGraph]);
+  }, []);
 
   const points = state ? buildPoints(state, currentTime, comparison, timingMethod) : [];
   const signature = JSON.stringify(points);
 
-  // showGraph is a dependency because hiding and showing the graph mounts a new, blank canvas.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || size.width === 0 || size.height === 0) return;
     draw(canvas, size.width, size.height, JSON.parse(signature) as GraphPoint[]);
-  }, [signature, size, settings.showGraph]);
-
-  if (!settings.showGraph) return null;
+  }, [signature, size]);
 
   return (
-    <div className="h-40 shrink-0 border-b border-white/10 bg-black/30 p-2">
+    <div className={cn('shrink-0 border-b border-white/10 bg-black/30 p-2', fill ? 'flex-1 border-b-0' : 'h-40')}>
       <div ref={containerRef} className="relative h-full w-full overflow-hidden rounded-md border border-white/5 bg-black/40">
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" aria-hidden />
       </div>

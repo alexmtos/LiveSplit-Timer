@@ -8,6 +8,7 @@
   --text-dim: #888;
   --theme-accent: #00a2ff;
   --theme-accent-rgb: 0, 162, 255;
+  --accent-fg: #ffffff;
   color-scheme: dark;
 }
 

@@ -1,14 +1,14 @@
 'use client';
 
 import React from 'react';
-import { ExternalLink, Settings as SettingsIcon } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useI18n } from '@/hooks/useI18n';
 import { PERSONAL_BEST, pickTime } from '@/lib/run';
 import { formatTime } from '@/lib/time';
 
-export function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
-  const { state, worldRecord, timingMethod, comparison, isConnected } = useLiveSplit();
+export function Header() {
+  const { state, worldRecord, timingMethod, comparison } = useLiveSplit();
   const { t } = useI18n();
 
   const run = state?.run;
@@ -42,22 +42,6 @@ export function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
 
   return (
     <header className="relative flex min-h-[70px] shrink-0 flex-col gap-1 border-b border-white/10 bg-black/30 p-3 px-4">
-      <div className="absolute right-4 top-3" data-export-ignore>
-        <button
-          type="button"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={onOpenSettings}
-          aria-label={t('btn_settings')}
-          title={t('btn_settings')}
-          className="relative flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[var(--text-dim)] transition-all hover:border-accent hover:bg-accent/10 hover:text-accent"
-        >
-          <SettingsIcon size={16} />
-          {!isConnected && (
-            <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border border-black bg-red-500" aria-hidden />
-          )}
-        </button>
-      </div>
-
       <div className="flex items-center gap-3 pr-10">
         {run?.gameIcon && (
           // Data URL sent by LiveSplit; next/image adds nothing here.

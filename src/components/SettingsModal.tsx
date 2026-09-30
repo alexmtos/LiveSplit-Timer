@@ -1,29 +1,111 @@
 'use client';
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { AlertTriangle, FileText, Image as ImageIcon, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Check, Copy, FileText, Image as ImageIcon, Link2, Trash2, X } from 'lucide-react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useExport } from '@/hooks/useExport';
 import { useI18n } from '@/hooks/useI18n';
 import { buildWsUrl, isBlockedByMixedContent, parseWsUrl, testWebSocket } from '@/lib/connection';
+import { buildOverlayUrl } from '@/lib/settings';
 import { THEME_COLORS } from '@/lib/themes';
 import { LANGUAGE_OPTIONS, type TranslationKey } from '@/lib/translations';
 import { cn } from '@/lib/utils';
-import type { Settings } from '@/types';
+import { OVERLAY_SECTIONS, type Settings } from '@/types';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
 const CONFIRM_WINDOW_MS = 3_000;
 
-type BooleanSetting = 'showControls' | 'showGraph' | 'showTable' | 'alwaysExpandedSplits' | 'hotkeysEnabled';
+type BooleanSetting =
+  | 'showHeader'
+  | 'showTimer'
+  | 'showPredictions'
+  | 'showControls'
+  | 'showGraph'
+  | 'showTable'
+  | 'alwaysExpandedSplits'
+  | 'hotkeysEnabled'
+  | 'streamMode';
 
 const TOGGLES: { key: BooleanSetting; title: TranslationKey; desc: TranslationKey }[] = [
+  { key: 'showHeader', title: 'display_header', desc: 'display_header_desc' },
+  { key: 'showTimer', title: 'display_timer', desc: 'display_timer_desc' },
+  { key: 'showPredictions', title: 'display_predictions', desc: 'display_predictions_desc' },
   { key: 'showControls', title: 'display_controls', desc: 'display_controls_desc' },
   { key: 'showGraph', title: 'display_graph', desc: 'display_graph_desc' },
   { key: 'showTable', title: 'display_table', desc: 'display_table_desc' },
   { key: 'alwaysExpandedSplits', title: 'display_expanded', desc: 'display_expanded_desc' },
   { key: 'hotkeysEnabled', title: 'display_hotkeys', desc: 'display_hotkeys_desc' },
+  { key: 'streamMode', title: 'display_stream', desc: 'display_stream_desc' },
 ];
+
+const PAGES: { path: string; label: TranslationKey }[] = [
+  { path: '/', label: 'obs_page_full' },
+  ...OVERLAY_SECTIONS.map((section) => ({ path: `/${section}`, label: `obs_page_${section}` as TranslationKey })),
+];
+
+/** Builds the URL of an overlay page with the current settings, for OBS browser sources. */
+function ObsUrlSection() {
+  const { settings } = useSettings();
+  const { t } = useI18n();
+  const [path, setPath] = useState('/');
+  const [origin, setOrigin] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- window is only available after mount
+    setOrigin(window.location.origin);
+  }, []);
+
+  const url = origin ? buildOverlayUrl(origin, path, settings) : '';
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2_000);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <section className="space-y-4">
+      <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('obs_title')}</h3>
+      <p className="text-[11px] leading-relaxed text-[var(--text-dim)]">{t('obs_desc')}</p>
+      <div className="flex gap-2">
+        <select
+          value={path}
+          onChange={(e) => setPath(e.target.value)}
+          aria-label={t('obs_page')}
+          className="rounded-md border border-white/10 bg-black/30 px-2 py-2 text-xs text-white focus:border-accent focus:outline-none"
+        >
+          {PAGES.map((page) => (
+            <option key={page.path} value={page.path} className="bg-black">
+              {t(page.label)}
+            </option>
+          ))}
+        </select>
+        <input
+          readOnly
+          value={url}
+          aria-label="URL"
+          onFocus={(e) => e.currentTarget.select()}
+          className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-3 py-2 font-mono text-[11px] text-white focus:border-accent focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={copy}
+          disabled={!url}
+          className="flex items-center gap-1.5 rounded-md border border-accent/30 bg-accent/15 px-3 text-xs font-bold text-accent transition-all hover:bg-accent/25"
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+          {copied ? t('obs_copied') : t('obs_copy')}
+        </button>
+      </div>
+    </section>
+  );
+}
 
 function Switch({ checked, onChange, labelledBy }: { checked: boolean; onChange: () => void; labelledBy: string }) {
   return (
@@ -249,7 +331,7 @@ function LanguagePicker() {
 }
 
 function SettingsDialog({ onClose }: { onClose: () => void }) {
-  const { settings, updateSettings, resetSettings } = useSettings();
+  const { settings, overriddenKeys, updateSettings, resetSettings } = useSettings();
   const { t } = useI18n();
   const { exportCSV, exportImage, canExport } = useExport();
   const [exportFailed, setExportFailed] = useState(false);
@@ -319,6 +401,12 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex-1 space-y-8 overflow-y-auto p-6">
+          {overriddenKeys.length > 0 && (
+            <p className="flex gap-2 rounded-md border border-accent/30 bg-accent/10 p-3 text-xs text-white/80">
+              <Link2 size={14} className="mt-0.5 shrink-0 text-accent" />
+              {t('url_overrides_notice')}
+            </p>
+          )}
           <ConnectionSection key={formGeneration} />
 
           <section className="space-y-4">
@@ -366,6 +454,8 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           </section>
+
+          <ObsUrlSection />
 
           <section className="space-y-4">
             <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('export_title')}</h3>

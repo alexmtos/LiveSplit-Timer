@@ -15,19 +15,70 @@ const keepFocus = (event: React.MouseEvent) => event.preventDefault();
 const secondaryButton =
   'flex h-9 min-w-[36px] items-center justify-center rounded-lg border border-white/10 bg-white/5 text-white transition-all hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-white/5';
 
-export function Controls() {
+/** `fill`: controls alone on the page (`/controls`), with large touch targets. */
+export function Controls({ fill = false }: { fill?: boolean }) {
   const { settings } = useSettings();
   const { state } = useLiveSplit();
   const controls = useRunControls();
   const { t } = useI18n();
-
-  if (!settings.showControls) return null;
 
   const phase = state?.timerState ?? 'NotRunning';
   const primaryLabel =
     phase === 'Ended' ? t('btn_reset') : phase === 'Running' ? t('btn_split') : phase === 'Paused' ? t('btn_resume') : t('btn_start');
   const pauseLabel = phase === 'Paused' ? t('btn_resume') : t('btn_pause');
   const withKey = (label: string, key: string) => (settings.hotkeysEnabled ? `${label} (${key})` : label);
+  const primaryIcon = (size: number) =>
+    phase === 'Ended' ? (
+      <RotateCcw size={size} />
+    ) : phase === 'Running' ? (
+      <Flag size={size} fill="currentColor" />
+    ) : (
+      <Play size={size} fill="currentColor" />
+    );
+
+  if (fill) {
+    const big = 'flex items-center justify-center gap-3 rounded-xl border text-lg font-bold text-white transition-all disabled:opacity-30';
+    const secondary = [
+      { label: pauseLabel, enabled: controls.canTogglePause, onClick: controls.togglePause, icon: phase === 'Paused' ? <Play size={28} fill="currentColor" /> : <Pause size={28} fill="currentColor" /> },
+      { label: t('btn_skip'), enabled: controls.canSkip, onClick: controls.skip, icon: <SkipForward size={28} /> },
+      { label: t('btn_undo'), enabled: controls.canUndo, onClick: controls.undo, icon: <Undo2 size={28} /> },
+      { label: controls.resetArmed ? t('reset_confirm_hint') : t('btn_reset'), enabled: controls.canReset, onClick: controls.requestReset, icon: <RotateCcw size={28} />, danger: controls.resetArmed },
+    ];
+    return (
+      <div className="grid flex-1 grid-rows-[2fr_1fr] gap-3 p-4 pt-14" data-export-ignore>
+        <button
+          type="button"
+          disabled={!controls.canPrimary}
+          onMouseDown={keepFocus}
+          onClick={controls.primary}
+          className={cn(big, phase === 'Ended' ? 'border-red-500 bg-red-500' : 'border-accent bg-accent text-[color:var(--accent-fg)] active:brightness-90')}
+        >
+          {primaryIcon(40)}
+          {primaryLabel}
+        </button>
+        <div className="grid grid-cols-4 gap-3">
+          {secondary.map((b, i) => (
+            <button
+              key={i}
+              type="button"
+              disabled={!b.enabled}
+              onMouseDown={keepFocus}
+              onClick={b.onClick}
+              aria-label={b.label}
+              title={b.label}
+              className={cn(
+                big,
+                'border-white/10 bg-white/5 active:bg-white/15',
+                b.danger && 'animate-pulse border-red-500 bg-red-500/30',
+              )}
+            >
+              {b.icon}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -46,16 +97,10 @@ export function Controls() {
             'flex h-11 min-w-[44px] items-center justify-center rounded-lg border px-3 text-white transition-all disabled:opacity-30',
             phase === 'Ended'
               ? 'border-red-500 bg-red-500'
-              : 'border-accent bg-accent hover:brightness-110',
+              : 'border-accent bg-accent text-[color:var(--accent-fg)] hover:brightness-110',
           )}
         >
-          {phase === 'Ended' ? (
-            <RotateCcw size={20} />
-          ) : phase === 'Running' ? (
-            <Flag size={20} fill="currentColor" />
-          ) : (
-            <Play size={20} fill="currentColor" />
-          )}
+          {primaryIcon(20)}
         </button>
       </div>
 

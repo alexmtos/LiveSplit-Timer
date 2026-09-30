@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
+import { accentForeground } from '@/lib/themes';
 import { buildWsUrl, isBlockedByMixedContent, parseWsUrl } from '@/lib/connection';
 import { csvField, safeFileName, toCsv } from '@/lib/csv';
-import { DEFAULT_SETTINGS, detectLanguage, sanitizeSettings } from '@/lib/settings';
+import { DEFAULT_SETTINGS, buildOverlayUrl, detectLanguage, parseUrlOverrides, sanitizeSettings } from '@/lib/settings';
 
 describe('connection URLs', () => {
   it('builds ws URLs from host and port', () => {
@@ -64,5 +65,73 @@ describe('settings', () => {
   it('keeps valid stored values', () => {
     const settings = sanitizeSettings({ language: 'de', theme: 'matrix', showGraph: false, wsUrl: 'ws://pc:15721', chromaKey: { enabled: true } });
     expect(settings).toMatchObject({ language: 'de', theme: 'matrix', showGraph: false, wsUrl: 'ws://pc:15721', chromaKey: { enabled: true } });
+  });
+});
+
+describe('URL overrides', () => {
+  const saved = 'ws://localhost:15721';
+
+  it('reads connection, theme, language and flags', () => {
+    expect(
+      parseUrlOverrides('?host=192.168.0.10&theme=matrix&lang=en&transparent=1&stream=1&expanded=yes&hotkeys=0', saved),
+    ).toEqual({
+      wsUrl: 'ws://192.168.0.10:15721',
+      theme: 'matrix',
+      language: 'en-US',
+      chromaKey: { enabled: true },
+      streamMode: true,
+      alwaysExpandedSplits: true,
+      hotkeysEnabled: false,
+    });
+  });
+
+  it('keeps the saved host when only the port is given', () => {
+    expect(parseUrlOverrides('?port=16000', 'ws://pc.local:15721').wsUrl).toBe('ws://pc.local:16000');
+  });
+
+  it('accepts a full ws URL', () => {
+    expect(parseUrlOverrides('?ws=wss://timer.example.com:9000', saved).wsUrl).toBe('wss://timer.example.com:9000');
+  });
+
+  it('hides and shows sections', () => {
+    expect(parseUrlOverrides('?hide=controls,graph,table&show=header', saved)).toEqual({
+      showControls: false,
+      showGraph: false,
+      showTable: false,
+      showHeader: true,
+    });
+  });
+
+  it('ignores unknown or invalid values', () => {
+    expect(parseUrlOverrides('?theme=nope&lang=xx&transparent=maybe&hide=foo&port=abc', saved)).toEqual({});
+  });
+
+  it('round-trips through buildOverlayUrl', () => {
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      wsUrl: 'ws://10.0.0.2:15722',
+      theme: 'retro',
+      language: 'de' as const,
+      streamMode: true,
+      showGraph: false,
+      chromaKey: { enabled: true },
+    };
+    const url = buildOverlayUrl('http://localhost:3000', '/', settings);
+    expect(url).toBe('http://localhost:3000/?host=10.0.0.2&port=15722&theme=retro&lang=de&transparent=1&stream=1&hide=graph');
+    const search = new URL(url).search;
+    expect({ ...DEFAULT_SETTINGS, ...parseUrlOverrides(search, DEFAULT_SETTINGS.wsUrl) }).toEqual(settings);
+  });
+
+  it('omits section visibility for single-section pages', () => {
+    const url = buildOverlayUrl('http://x', '/timer', { ...DEFAULT_SETTINGS, showTimer: false });
+    expect(url).toBe('http://x/timer?lang=pt-BR');
+  });
+});
+
+describe('accentForeground', () => {
+  it('uses dark text on bright accents and light text on dark ones', () => {
+    expect(accentForeground('0, 255, 255')).toBe('#000000');
+    expect(accentForeground('0, 162, 255')).toBe('#ffffff');
+    expect(accentForeground('108, 92, 231')).toBe('#ffffff');
   });
 });

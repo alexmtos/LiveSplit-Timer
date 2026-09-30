@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
-import { getTheme } from '@/lib/themes';
+import { accentForeground, getTheme } from '@/lib/themes';
 
 /** Applies the theme colours and the transparent (OBS) background to the document. */
 export function ThemeManager() {
@@ -16,6 +16,7 @@ export function ThemeManager() {
     root.style.setProperty('--text-dim', theme.text);
     root.style.setProperty('--theme-accent', theme.accent);
     root.style.setProperty('--theme-accent-rgb', theme.accentRgb);
+    root.style.setProperty('--accent-fg', accentForeground(theme.accentRgb));
     // The page background lives on <html>/<body>; it must be cleared too or
     // OBS still captures an opaque rectangle behind the overlay.
     root.style.setProperty('--page-bg', transparent ? 'transparent' : theme.bg);
