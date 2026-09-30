@@ -39,7 +39,7 @@ const ptBR = {
   connection_protocol_warning:
     'Conectado, mas nenhum dado de timer foi recebido. Este app usa o componente LiveSplit.WebSocketServer, não o servidor TCP/WebSocket embutido do LiveSplit.',
   connection_no_data: 'Conectado, mas nenhum dado de timer foi recebido. Abra as configurações para ver o motivo.',
-  diag_silent: 'O servidor aceitou a conexão, mas não enviou nenhuma mensagem, nem ao ser pedido o estado. Se for o LiveSplit WebSocket Server 2.x, o componente provavelmente falhou ao montar o estado da run: veja o erro no log do LiveSplit (Visualizador de Eventos do Windows → Logs de Aplicativos e Serviços → LiveSplit) e reinicie o servidor.',
+  diag_silent: 'O servidor aceitou a conexão, mas não enviou nenhuma mensagem, nem ao ser pedido o estado. O componente não chegou a responder: confira se a versão carregada pelo LiveSplit é a 2.x, procure erros no Visualizador de Eventos do Windows (Logs do Windows → Aplicativo, fonte "LiveSplit") e reinicie o LiveSplit.',
   diag_error: 'O LiveSplit WebSocket Server respondeu com um erro ao enviar o estado da run. Reinicie o servidor do componente; se o erro continuar, ele é um problema do componente:',
   diag_unknown: 'O servidor enviou uma mensagem que o app não reconhece como estado do timer. Confira se a porta é a do LiveSplit WebSocket Server. Início da mensagem:',
   connection_mixed_content:
@@ -170,7 +170,7 @@ const enUS: Dictionary = {
   connection_protocol_warning:
     'Connected, but no timer data was received. This app needs the LiveSplit.WebSocketServer component, not LiveSplit’s built-in TCP/WebSocket server.',
   connection_no_data: 'Connected, but no timer data was received. Open the settings to see why.',
-  diag_silent: 'The server accepted the connection but sent no message, not even when asked for the state. If it is LiveSplit WebSocket Server 2.x, the component most likely failed to build the run state: check LiveSplit’s log (Windows Event Viewer → Applications and Services Logs → LiveSplit) and restart the server.',
+  diag_silent: 'The server accepted the connection but sent no message, not even when asked for the state. The component never answered: check that LiveSplit loads version 2.x, look for errors in Windows Event Viewer (Windows Logs → Application, source "LiveSplit") and restart LiveSplit.',
   diag_error: 'LiveSplit WebSocket Server answered with an error while sending the run state. Restart the component’s server; if the error persists, it is a component problem:',
   diag_unknown: 'The server sent a message the app does not recognise as timer state. Check that the port is LiveSplit WebSocket Server’s. Start of the message:',
   connection_mixed_content:
@@ -298,7 +298,7 @@ const fr: Dictionary = {
   connection_protocol_warning:
     'Connecté, mais aucune donnée du timer n’a été reçue. Cette application nécessite le composant LiveSplit.WebSocketServer, pas le serveur TCP/WebSocket intégré de LiveSplit.',
   connection_no_data: 'Connecté, mais aucune donnée du timer n’a été reçue. Ouvrez les paramètres pour voir pourquoi.',
-  diag_silent: 'Le serveur a accepté la connexion mais n’a envoyé aucun message, même quand l’état a été demandé. S’il s’agit de LiveSplit WebSocket Server 2.x, le composant n’a probablement pas pu construire l’état de la run : consultez le journal de LiveSplit (Observateur d’événements Windows → Journaux des applications et des services → LiveSplit) et redémarrez le serveur.',
+  diag_silent: 'Le serveur a accepté la connexion mais n’a envoyé aucun message, même quand l’état a été demandé. Le composant n’a jamais répondu : vérifiez que LiveSplit charge la version 2.x, cherchez des erreurs dans l’Observateur d’événements Windows (Journaux Windows → Application, source « LiveSplit ») et redémarrez LiveSplit.',
   diag_error: 'LiveSplit WebSocket Server a répondu par une erreur en envoyant l’état de la run. Redémarrez le serveur du composant ; si l’erreur persiste, c’est un problème du composant :',
   diag_unknown: 'Le serveur a envoyé un message que l’application ne reconnaît pas comme l’état du timer. Vérifiez que le port est celui de LiveSplit WebSocket Server. Début du message :',
   connection_mixed_content:
@@ -426,7 +426,7 @@ const de: Dictionary = {
   connection_protocol_warning:
     'Verbunden, aber es kommen keine Timer-Daten an. Diese App benötigt die Komponente LiveSplit.WebSocketServer, nicht den eingebauten TCP/WebSocket-Server von LiveSplit.',
   connection_no_data: 'Verbunden, aber es kommen keine Timer-Daten an. Öffne die Einstellungen, um den Grund zu sehen.',
-  diag_silent: 'Der Server hat die Verbindung angenommen, aber keine Nachricht gesendet, auch nicht auf Anfrage des Zustands. Handelt es sich um LiveSplit WebSocket Server 2.x, konnte die Komponente den Run-Zustand vermutlich nicht erstellen: Prüfe das LiveSplit-Protokoll (Windows-Ereignisanzeige → Anwendungs- und Dienstprotokolle → LiveSplit) und starte den Server neu.',
+  diag_silent: 'Der Server hat die Verbindung angenommen, aber keine Nachricht gesendet, auch nicht auf Anfrage des Zustands. Die Komponente hat nie geantwortet: Prüfe, ob LiveSplit Version 2.x lädt, suche Fehler in der Windows-Ereignisanzeige (Windows-Protokolle → Anwendung, Quelle „LiveSplit“) und starte LiveSplit neu.',
   diag_error: 'LiveSplit WebSocket Server hat beim Senden des Run-Zustands mit einem Fehler geantwortet. Starte den Server der Komponente neu; bleibt der Fehler, liegt er in der Komponente:',
   diag_unknown: 'Der Server hat eine Nachricht gesendet, die die App nicht als Timer-Zustand erkennt. Prüfe, ob der Port der von LiveSplit WebSocket Server ist. Anfang der Nachricht:',
   connection_mixed_content:
@@ -554,7 +554,7 @@ const es: Dictionary = {
   connection_protocol_warning:
     'Conectado, pero no llegan datos del timer. Esta app necesita el componente LiveSplit.WebSocketServer, no el servidor TCP/WebSocket integrado de LiveSplit.',
   connection_no_data: 'Conectado, pero no llegan datos del timer. Abre la configuración para ver el motivo.',
-  diag_silent: 'El servidor aceptó la conexión pero no envió ningún mensaje, ni siquiera al pedirle el estado. Si es LiveSplit WebSocket Server 2.x, probablemente el componente falló al construir el estado de la run: revisa el registro de LiveSplit (Visor de eventos de Windows → Registros de aplicaciones y servicios → LiveSplit) y reinicia el servidor.',
+  diag_silent: 'El servidor aceptó la conexión pero no envió ningún mensaje, ni siquiera al pedirle el estado. El componente nunca respondió: comprueba que LiveSplit carga la versión 2.x, busca errores en el Visor de eventos de Windows (Registros de Windows → Aplicación, origen "LiveSplit") y reinicia LiveSplit.',
   diag_error: 'LiveSplit WebSocket Server respondió con un error al enviar el estado de la run. Reinicia el servidor del componente; si el error continúa, es un problema del componente:',
   diag_unknown: 'El servidor envió un mensaje que la app no reconoce como estado del timer. Comprueba que el puerto sea el de LiveSplit WebSocket Server. Inicio del mensaje:',
   connection_mixed_content:
