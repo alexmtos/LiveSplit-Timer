@@ -3,7 +3,7 @@
 import React, { useId, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useI18n } from '@/hooks/useI18n';
-import { THEME_COLORS, THEME_IDS, getTheme } from '@/lib/themes';
+import { THEME_IDS, getTheme, type CustomThemeColors } from '@/lib/themes';
 import type { TranslationKey } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 
@@ -14,13 +14,22 @@ const diagonal = (bg: string, accent: string) =>
  * The current theme with previous/next buttons (cyclic); clicking the bar
  * expands a grid with every theme.
  */
-export function ThemeSelector({ value, onSelect }: { value: string; onSelect: (themeId: string) => void }) {
+export function ThemeSelector({
+  value,
+  custom,
+  onSelect,
+}: {
+  value: string;
+  /** Colours of the custom theme, to preview it. */
+  custom: CustomThemeColors;
+  onSelect: (themeId: string) => void;
+}) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const gridId = useId();
   const current = THEME_IDS.includes(value) ? value : 'default';
   const index = THEME_IDS.indexOf(current);
-  const colors = getTheme(current);
+  const colors = getTheme(current, custom);
   const name = (id: string) => t(`theme_${id}` as TranslationKey);
   const step = (delta: number) => onSelect(THEME_IDS[(index + delta + THEME_IDS.length) % THEME_IDS.length]);
 
@@ -81,7 +90,7 @@ export function ThemeSelector({ value, onSelect }: { value: string; onSelect: (t
                 ? 'border-accent shadow-[0_0_15px_rgba(var(--theme-accent-rgb),0.3)]'
                 : 'border-[#2a2a2a] hover:border-[#555]',
             )}
-            style={{ backgroundImage: diagonal(THEME_COLORS[id].bg, THEME_COLORS[id].accent) }}
+            style={{ backgroundImage: diagonal(getTheme(id, custom).bg, getTheme(id, custom).accent) }}
           >
             <span className="text-sm font-bold text-white [text-shadow:0_2px_4px_rgba(0,0,0,0.6)]">{name(id)}</span>
           </button>

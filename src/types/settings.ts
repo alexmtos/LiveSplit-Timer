@@ -4,6 +4,12 @@ export type Language = (typeof LANGUAGES)[number];
 export interface Settings {
   language: Language;
   theme: string;
+  /** Colours of the custom theme (`theme: 'custom'`), as `#rrggbb`. */
+  customTheme: {
+    bg: string;
+    text: string;
+    accent: string;
+  };
   showHeader: boolean;
   showTimer: boolean;
   showPredictions: boolean;

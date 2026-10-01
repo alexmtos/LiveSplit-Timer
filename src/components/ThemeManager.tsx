@@ -8,7 +8,7 @@ import { setRefreshRate } from '@/lib/ticker';
 /** Applies the theme colours and the transparent (OBS) background to the document. */
 export function ThemeManager() {
   const { settings } = useSettings();
-  const theme = getTheme(settings.theme);
+  const theme = getTheme(settings.theme, settings.customTheme);
   const transparent = settings.chromaKey.enabled;
   const transparency = settings.transparency;
 

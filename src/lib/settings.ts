@@ -1,7 +1,7 @@
 import { LANGUAGES, OVERLAY_SECTIONS, SECTION_SETTING, type Language, type OverlaySection, type Settings } from '@/types';
 import { DEFAULT_REFRESH_RATE, REFRESH_RATES } from './ticker';
 import { DEFAULT_PORT, DEFAULT_WS_URL, buildWsUrl, parseWsUrl } from './connection';
-import { THEME_COLORS } from './themes';
+import { CUSTOM_THEME, DEFAULT_CUSTOM_THEME, isThemeId, toHexColor, type CustomThemeColors } from './themes';
 
 export const SETTINGS_STORAGE_KEY = 'livesplit-settings';
 
@@ -12,6 +12,7 @@ export const SPLIT_ICON_SIZES = { min: 16, max: 64, step: 2 } as const;
 export const DEFAULT_SETTINGS: Settings = {
   language: 'pt-BR',
   theme: 'default',
+  customTheme: { ...DEFAULT_CUSTOM_THEME },
   showHeader: true,
   showTimer: true,
   showPredictions: true,
@@ -68,6 +69,18 @@ function toPixels(value: unknown, range: { min: number; max: number }): number |
   return typeof number === 'number' && Number.isFinite(number) && number >= range.min && number <= range.max ? Math.round(number) : null;
 }
 
+/** Custom theme colours from an object (stored settings) or from `bg,text,accent` hex digits (URL); null when any is invalid. */
+function toCustomTheme(value: unknown): CustomThemeColors | null {
+  const parts =
+    typeof value === 'string'
+      ? value.split(',')
+      : typeof value === 'object' && value !== null
+        ? [(value as Record<string, unknown>).bg, (value as Record<string, unknown>).text, (value as Record<string, unknown>).accent]
+        : [];
+  const [bg, text, accent] = parts.map(toHexColor);
+  return parts.length === 3 && bg && text && accent ? { bg, text, accent } : null;
+}
+
 type BooleanKey = {
   [K in keyof Settings]: Settings[K] extends boolean ? K : never;
 }[keyof Settings];
@@ -122,7 +135,8 @@ export function sanitizeSettings(raw: unknown, fallbackLanguage: Language = DEFA
   const settings: Settings = {
     ...DEFAULT_SETTINGS,
     language: isLanguage(input.language) ? input.language : fallbackLanguage,
-    theme: typeof input.theme === 'string' && input.theme in THEME_COLORS ? input.theme : DEFAULT_SETTINGS.theme,
+    theme: isThemeId(input.theme) ? input.theme : DEFAULT_SETTINGS.theme,
+    customTheme: toCustomTheme(input.customTheme) ?? { ...DEFAULT_CUSTOM_THEME },
     wsUrl: isWsUrl(input.wsUrl) ? input.wsUrl : DEFAULT_SETTINGS.wsUrl,
     token: typeof input.token === 'string' ? input.token.trim() : DEFAULT_SETTINGS.token,
     chromaKey: {
@@ -165,6 +179,7 @@ function parseSections(value: string | null): OverlaySection[] {
  *   &stream=1&hide=controls,graph&expanded=1&hotkeys=0&order=timer,splits&gameicon=48&spliticon=32
  *
  * `order` lists sections from the top; the ones it leaves out follow in the default order.
+ * `theme=custom` takes its colours from `colors=<background>,<secondary text>,<accent>` (hex, no `#`).
  */
 export function parseUrlOverrides(search: string, currentWsUrl: string): Partial<Settings> {
   const params = new URLSearchParams(search);
@@ -187,7 +202,9 @@ export function parseUrlOverrides(search: string, currentWsUrl: string): Partial
   if (token !== null) overrides.token = token.trim();
 
   const theme = params.get('theme');
-  if (theme && theme in THEME_COLORS) overrides.theme = theme;
+  if (isThemeId(theme)) overrides.theme = theme;
+  const colors = toCustomTheme(params.get('colors'));
+  if (colors) overrides.customTheme = colors;
 
   const lang = params.get('lang');
   const language = lang ? matchLanguage(lang) : null;
@@ -246,6 +263,11 @@ export function buildOverlayUrl(
   }
   if (settings.token) params.set('token', settings.token);
   if (settings.theme !== DEFAULT_SETTINGS.theme) params.set('theme', settings.theme);
+  // An OBS source may not share the browser's saved settings: the custom colours go along.
+  if (settings.theme === CUSTOM_THEME) {
+    const { bg, text, accent } = settings.customTheme;
+    params.set('colors', [bg, text, accent].map((hex) => hex.slice(1)).join(','));
+  }
   params.set('lang', settings.language);
   if (settings.chromaKey.enabled) {
     params.set('transparent', '1');

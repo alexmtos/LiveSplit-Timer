@@ -19,10 +19,41 @@ export const THEME_COLORS: Record<string, ThemeColors> = {
   midnight: { bg: '#00072d', text: '#5465ff', accent: '#6c5ce7', accentRgb: '108, 92, 231' },
 };
 
-/** Themes in the order the selector cycles through them. */
-export const THEME_IDS = Object.keys(THEME_COLORS);
+/** The theme whose colours the user picks (`Settings.customTheme`). */
+export const CUSTOM_THEME = 'custom';
 
-export function getTheme(id: string): ThemeColors {
+/** The colours the user picks for the custom theme, as `#rrggbb`. */
+export interface CustomThemeColors {
+  bg: string;
+  text: string;
+  accent: string;
+}
+
+export const DEFAULT_CUSTOM_THEME: CustomThemeColors = { bg: '#0b0f14', text: '#9aa5b1', accent: '#f5c518' };
+
+/** Themes in the order the selector cycles through them; the custom one comes last. */
+export const THEME_IDS = [...Object.keys(THEME_COLORS), CUSTOM_THEME];
+
+export const isThemeId = (value: unknown): value is string => typeof value === 'string' && THEME_IDS.includes(value);
+
+/** `#rgb` or `#rrggbb` (the `#` optional) as lowercase `#rrggbb`, or null. */
+export function toHexColor(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(value.trim());
+  if (!match) return null;
+  const digits = match[1].length === 3 ? [...match[1]].map((digit) => digit + digit).join('') : match[1];
+  return `#${digits.toLowerCase()}`;
+}
+
+/** `#rrggbb` as `"r, g, b"`. */
+export function rgbOf(hex: string): string {
+  const digits = (toHexColor(hex) ?? '#000000').slice(1);
+  return [0, 2, 4].map((i) => parseInt(digits.slice(i, i + 2), 16)).join(', ');
+}
+
+/** The colours of a theme; the custom theme takes the user's. Unknown themes fall back to the default. */
+export function getTheme(id: string, custom: CustomThemeColors = DEFAULT_CUSTOM_THEME): ThemeColors {
+  if (id === CUSTOM_THEME) return { ...custom, accentRgb: rgbOf(custom.accent) };
   return THEME_COLORS[id] ?? THEME_COLORS.default;
 }
 

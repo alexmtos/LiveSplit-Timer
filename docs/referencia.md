@@ -45,11 +45,19 @@ As opções ficam desativadas quando o componente está em modo somente leitura.
 
 | Opção | Padrão | Descrição |
 |-------|--------|-----------|
-| Tema | Padrão | Um dos 11 temas: `default`, `dark`, `purple`, `orange`, `retro`, `blue`, `green`, `pink`, `matrix`, `sunset`, `midnight`. |
+| Tema | Padrão | Um dos 11 temas prontos (`default`, `dark`, `purple`, `orange`, `retro`, `blue`, `green`, `pink`, `matrix`, `sunset`, `midnight`) ou o tema `custom`, com as suas cores. |
 | Modo Transparente | Desligado | Remove o fundo e a borda da página para uso no OBS. |
 | Transparência do fundo | 100% | Aparece com o modo transparente ligado. Em 100% o fundo some; em valores menores, o fundo do tema aparece por trás do overlay com essa transparência. |
 
 Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nome para ver todos os temas. Ao trocar, só o seletor de tema fica na tela, e você pode continuar passando pelos temas enquanto vê cada um no overlay.
+
+### Criar um tema com as suas cores
+
+1. Escolha **Custom**, o último tema da lista.
+2. Abaixo do seletor, escolha as três cores: **Fundo**, **Destaque** (títulos, botões e bordas) e **Texto secundário**. O texto principal continua branco, e as cores de à frente e atrás continuam verde e vermelho.
+3. Ao mudar uma cor, só o editor fica na tela, para você ver o resultado no overlay.
+
+As cores ficam salvas. A URL para o OBS leva o parâmetro `colors`, para a fonte usar as mesmas cores mesmo sem as configurações salvas.
 
 ### Exibição
 
@@ -110,6 +118,7 @@ http://localhost:3000/?host=192.168.0.10&theme=matrix&transparent=1&stream=1&hid
 | `ws` | URL `ws://` ou `wss://` | Endereço completo; tem prioridade sobre `host` e `port`. |
 | `token` | Texto | Token exigido pelo componente. |
 | `theme` | ID do tema | Tema da página. |
+| `colors` | Três cores em hexadecimal | Cores do tema `custom`, sem `#`, na ordem fundo, texto secundário e destaque. Por exemplo, `theme=custom&colors=0b0f14,9aa5b1,f5c518`. |
 | `lang` | `pt-BR`, `en-US`, `fr`, `de`, `es` (ou só o prefixo, como `en`) | Idioma. |
 | `transparent` | booleano | Modo transparente. |
 | `transparency` | `0`–`100` | Transparência do fundo no modo transparente. |

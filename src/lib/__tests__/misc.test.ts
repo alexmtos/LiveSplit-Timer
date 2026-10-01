@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { accentForeground } from '@/lib/themes';
+import { THEME_IDS, accentForeground, getTheme, toHexColor } from '@/lib/themes';
 import { buildWsUrl, connectionUrl, isBlockedByMixedContent, parseWsUrl } from '@/lib/connection';
 import { csvField, safeFileName, toCsv } from '@/lib/csv';
 import { DEFAULT_SETTINGS, buildOverlayUrl, detectLanguage, parseUrlOverrides, sanitizeSettings } from '@/lib/settings';
@@ -170,6 +170,43 @@ describe('URL overrides', () => {
     expect(url).toBe('http://x/?lang=pt-BR&order=timer,header,predictions,graph,controls,splits');
     expect({ ...DEFAULT_SETTINGS, ...parseUrlOverrides(new URL(url).search, DEFAULT_SETTINGS.wsUrl) }).toEqual(settings);
     expect(buildOverlayUrl('http://x', '/', DEFAULT_SETTINGS)).toBe('http://x/?lang=pt-BR');
+  });
+});
+
+describe('custom theme', () => {
+  it('is the last theme and uses the picked colours', () => {
+    expect(THEME_IDS[THEME_IDS.length - 1]).toBe('custom');
+    expect(getTheme('custom', { bg: '#000000', text: '#cccccc', accent: '#ff8000' })).toEqual({
+      bg: '#000000',
+      text: '#cccccc',
+      accent: '#ff8000',
+      accentRgb: '255, 128, 0',
+    });
+    expect(getTheme('nope').accent).toBe(getTheme('default').accent);
+  });
+
+  it('normalizes hex colours', () => {
+    expect(toHexColor('ABC')).toBe('#aabbcc');
+    expect(toHexColor('#12aBcD')).toBe('#12abcd');
+    expect(toHexColor('#12345')).toBeNull();
+    expect(toHexColor('red')).toBeNull();
+  });
+
+  it('keeps valid stored colours and drops invalid ones', () => {
+    expect(sanitizeSettings({ theme: 'custom', customTheme: { bg: '#111', text: '#222222', accent: '#abcdef' } })).toMatchObject({
+      theme: 'custom',
+      customTheme: { bg: '#111111', text: '#222222', accent: '#abcdef' },
+    });
+    expect(sanitizeSettings({ customTheme: { bg: '#111', text: 'x', accent: '#abcdef' } }).customTheme).toEqual(DEFAULT_SETTINGS.customTheme);
+  });
+
+  it('carries the colours in the OBS URL', () => {
+    const settings = { ...DEFAULT_SETTINGS, theme: 'custom', customTheme: { bg: '#101010', text: '#a0a0a0', accent: '#ff00aa' } };
+    const url = buildOverlayUrl('http://x', '/timer', settings);
+    expect(url).toBe('http://x/timer?theme=custom&colors=101010,a0a0a0,ff00aa&lang=pt-BR');
+    expect({ ...DEFAULT_SETTINGS, ...parseUrlOverrides(new URL(url).search, DEFAULT_SETTINGS.wsUrl) }).toEqual(settings);
+    expect(buildOverlayUrl('http://x', '/timer', { ...settings, theme: 'matrix' })).toBe('http://x/timer?theme=matrix&lang=pt-BR');
+    expect(parseUrlOverrides('?colors=101010,zzz,ff00aa', 'ws://localhost:15721')).toEqual({});
   });
 });
 

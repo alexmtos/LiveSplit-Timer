@@ -181,6 +181,11 @@ const ptBR = {
   theme_matrix: 'Matrix',
   theme_sunset: 'Sunset',
   theme_midnight: 'Midnight',
+  theme_custom: 'Custom',
+  custom_theme_bg: 'Fundo',
+  custom_theme_accent: 'Destaque',
+  custom_theme_text: 'Texto secundário',
+  custom_theme_desc: 'Escolha as cores do tema Custom. O texto principal continua branco, e as cores vão junto na URL para o OBS.',
 };
 
 export type TranslationKey = keyof typeof ptBR;
@@ -367,6 +372,11 @@ const enUS: Dictionary = {
   theme_matrix: 'Matrix',
   theme_sunset: 'Sunset',
   theme_midnight: 'Midnight',
+  theme_custom: 'Custom',
+  custom_theme_bg: 'Background',
+  custom_theme_accent: 'Accent',
+  custom_theme_text: 'Secondary text',
+  custom_theme_desc: 'Pick the colours of the Custom theme. Main text stays white, and the colours go along in the OBS URL.',
 };
 
 const fr: Dictionary = {
@@ -550,6 +560,11 @@ const fr: Dictionary = {
   theme_matrix: 'Matrix',
   theme_sunset: 'Sunset',
   theme_midnight: 'Minuit',
+  theme_custom: 'Personnalisé',
+  custom_theme_bg: 'Fond',
+  custom_theme_accent: 'Accent',
+  custom_theme_text: 'Texte secondaire',
+  custom_theme_desc: 'Choisissez les couleurs du thème Personnalisé. Le texte principal reste blanc, et les couleurs sont incluses dans l\'URL pour OBS.',
 };
 
 const de: Dictionary = {
@@ -733,6 +748,11 @@ const de: Dictionary = {
   theme_matrix: 'Matrix',
   theme_sunset: 'Sunset',
   theme_midnight: 'Mitternacht',
+  theme_custom: 'Eigenes',
+  custom_theme_bg: 'Hintergrund',
+  custom_theme_accent: 'Akzent',
+  custom_theme_text: 'Sekundärtext',
+  custom_theme_desc: 'Wählen Sie die Farben des Themes Eigenes. Der Haupttext bleibt weiß, und die Farben stehen mit in der URL für OBS.',
 };
 
 const es: Dictionary = {
@@ -916,6 +936,11 @@ const es: Dictionary = {
   theme_matrix: 'Matrix',
   theme_sunset: 'Sunset',
   theme_midnight: 'Medianoche',
+  theme_custom: 'Personalizado',
+  custom_theme_bg: 'Fondo',
+  custom_theme_accent: 'Acento',
+  custom_theme_text: 'Texto secundario',
+  custom_theme_desc: 'Elige los colores del tema Personalizado. El texto principal sigue en blanco, y los colores van en la URL para OBS.',
 };
 
 export const translations: Record<Language, Dictionary> = {

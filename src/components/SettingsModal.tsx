@@ -8,6 +8,7 @@ import { useExport } from '@/hooks/useExport';
 import { useI18n } from '@/hooks/useI18n';
 import { buildWsUrl, isBlockedByMixedContent, parseWsUrl, testConnection, type TestResult } from '@/lib/connection';
 import { GAME_ICON_SIZES, SPLIT_ICON_SIZES, buildOverlayUrl } from '@/lib/settings';
+import { CUSTOM_THEME, type CustomThemeColors } from '@/lib/themes';
 import { LANGUAGE_OPTIONS, type TranslationKey } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 import { OVERLAY_SECTIONS, SECTION_SETTING, type ConnectionDiagnostic, type OverlaySection, type Settings } from '@/types';
@@ -601,6 +602,44 @@ function RangeSetting({
   );
 }
 
+const CUSTOM_COLORS: { key: keyof CustomThemeColors; label: TranslationKey }[] = [
+  { key: 'bg', label: 'custom_theme_bg' },
+  { key: 'accent', label: 'custom_theme_accent' },
+  { key: 'text', label: 'custom_theme_text' },
+];
+
+/** The colours of the custom theme; `onChange` gets the colour input so the panel can keep the editor on screen. */
+function CustomThemeEditor({
+  colors,
+  onChange,
+}: {
+  colors: CustomThemeColors;
+  onChange: (colors: CustomThemeColors, source: HTMLElement) => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div data-setting className="rounded-lg bg-white/[0.03] p-3">
+      <p className="mb-3 text-xs text-[var(--text-dim)]">{t('custom_theme_desc')}</p>
+      <div className="grid grid-cols-3 gap-3">
+        {CUSTOM_COLORS.map(({ key, label }) => (
+          <label key={key} className="flex cursor-pointer flex-col gap-1.5">
+            <span className="text-xs font-medium text-white">{t(label)}</span>
+            <span className="flex items-center gap-2 rounded-md border border-white/10 bg-black/30 p-1.5 transition-colors hover:border-accent">
+              <input
+                type="color"
+                value={colors[key]}
+                onChange={(event) => onChange({ ...colors, [key]: event.currentTarget.value }, event.currentTarget)}
+                className="h-7 w-9 shrink-0 cursor-pointer rounded border-0 bg-transparent p-0"
+              />
+              <span className="font-mono text-[11px] uppercase text-[var(--text-dim)]">{colors[key]}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Times per second the running timer is redrawn: fewer use less CPU. */
 function RefreshRatePicker({ value, onChange }: { value: number; onChange: (rate: number) => void }) {
   const { t } = useI18n();
@@ -930,8 +969,17 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           <section className={SECTION}>
             <h3 className="text-base font-semibold text-accent">{t('theme_title')}</h3>
             <div ref={themeRef} data-setting>
-              <ThemeSelector value={settings.theme} onSelect={selectTheme} />
+              <ThemeSelector value={settings.theme} custom={settings.customTheme} onSelect={selectTheme} />
             </div>
+            {settings.theme === CUSTOM_THEME && (
+              <CustomThemeEditor
+                colors={settings.customTheme}
+                onChange={(customTheme, source) => {
+                  updateSettings({ customTheme });
+                  showPeek(t('theme_custom'), source);
+                }}
+              />
+            )}
             <SettingRow
               title={t('theme_transparent')}
               desc={t('theme_transparent_desc')}
