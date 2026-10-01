@@ -599,11 +599,25 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  // After a change you can see on the overlay, the panel steps aside for a
+  // moment with a message, then comes back.
+  const [peek, setPeek] = useState<string | null>(null);
+  const peekRef = useRef<string | null>(null);
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(peekTimer.current), []);
+
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current();
+      if (event.key !== 'Escape') return;
+      // Escape first brings the panel back, then closes it.
+      if (peekRef.current) {
+        clearTimeout(peekTimer.current);
+        setPeek(null);
+      } else {
+        onCloseRef.current();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
@@ -612,11 +626,15 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  // After a change you can see on the overlay, the panel steps aside for a
-  // moment with a message, then comes back.
-  const [peek, setPeek] = useState<string | null>(null);
-  const peekTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(peekTimer.current), []);
+  // While aside the panel is inert, which drops focus; give it back to the control that had it.
+  const focusBeforePeek = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    peekRef.current = peek;
+    if (!peek && focusBeforePeek.current) {
+      if (focusBeforePeek.current.isConnected) focusBeforePeek.current.focus();
+      focusBeforePeek.current = null;
+    }
+  }, [peek]);
   const endPeek = () => {
     clearTimeout(peekTimer.current);
     setPeek(null);
@@ -624,6 +642,8 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   const showPeek = (message: string, delay = 0) => {
     endPeek();
     const start = () => {
+      // Taken before the panel turns inert and drops the focus.
+      focusBeforePeek.current ??= document.activeElement as HTMLElement | null;
       setPeek(message);
       peekTimer.current = setTimeout(() => setPeek(null), PEEK_MS);
     };
@@ -664,7 +684,8 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   };
 
   const reset = (keepConnection: boolean) => {
-    resetSettings({ keepConnection });
+    // The address in use, which may come from the page URL rather than the saved settings.
+    resetSettings(keepConnection ? { keep: { wsUrl: settings.wsUrl, token: settings.token } } : {});
     setFormGeneration((n) => n + 1);
   };
 
@@ -696,7 +717,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-hidden={peek ? true : undefined}
+        inert={!!peek}
         className={cn(
           'flex max-h-[90vh] w-full max-w-[500px] flex-col overflow-hidden rounded-lg border border-white/10 bg-[var(--bg-main)] shadow-[0_40px_80px_rgba(0,0,0,0.6)] transition-opacity duration-300 [animation:modal-in_0.3s_ease] max-sm:h-full max-sm:max-h-full max-sm:max-w-full max-sm:rounded-none',
           peek && 'pointer-events-none opacity-0',

@@ -79,14 +79,21 @@ export function Overlay({ only }: { only?: OverlaySection }) {
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
-  const autoOpenAllowed = isLoaded && !only && !settings.streamMode;
+  // Decided once, when the saved settings are known; later changes (e.g. turning
+  // stream mode off) never schedule it again.
+  const autoOpenDecided = useRef(false);
   useEffect(() => {
-    if (!autoOpenAllowed) return;
+    if (!isLoaded || autoOpenDecided.current) return;
+    if (only || settings.streamMode) {
+      autoOpenDecided.current = true;
+      return;
+    }
     const id = setTimeout(() => {
+      autoOpenDecided.current = true;
       if (statusRef.current !== 'connected') setIsSettingsOpen(true);
     }, AUTO_OPEN_MS);
     return () => clearTimeout(id);
-  }, [autoOpenAllowed]);
+  }, [isLoaded, only, settings.streamMode]);
 
   useLiveSplitHotkeys(settings.hotkeysEnabled && !isSettingsOpen);
 

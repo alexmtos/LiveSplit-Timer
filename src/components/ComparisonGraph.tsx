@@ -240,6 +240,8 @@ export function ComparisonGraph({ fill = false, fixedHeight }: { fill?: boolean;
   const layoutRef = useRef<Layout | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [height, setHeight] = useState(DEFAULT_HEIGHT);
+  // The saved height is read after mount; animate height changes only after that.
+  const [heightLoaded, setHeightLoaded] = useState(false);
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ startY: number; startHeight: number } | null>(null);
 
@@ -251,6 +253,7 @@ export function ComparisonGraph({ fill = false, fixedHeight }: { fill?: boolean;
     } catch {
       // Storage unavailable: keep the default height.
     }
+    setHeightLoaded(true);
   }, []);
 
   const hidden = !state || state.run.segments.length <= 1;
@@ -281,11 +284,11 @@ export function ComparisonGraph({ fill = false, fixedHeight }: { fill?: boolean;
       const currentTime = anchor ? extrapolateTime(anchor, timingMethod, performance.now()) : null;
       const live = liveDelta(state, currentTime, comparison, timingMethod);
       // Redraw only when the picture changes: the live point moved half a pixel,
-      // or the scale changed enough to move the other points.
+      // the scale changed enough to move the other points, or its label changed.
       let key = 'static';
       if (live !== null) {
         const range = Math.max(baseRange, Math.abs(live) * 1.25);
-        key = `${Math.round((live / (2 * range)) * plotHeight * 2)}|${Math.round(Math.log(range) * 500)}`;
+        key = `${Math.round((live / (2 * range)) * plotHeight * 2)}|${Math.round(Math.log(range) * 500)}|${formatDelta(live)}`;
       }
       if (key !== drawn) {
         drawn = key;
@@ -323,15 +326,21 @@ export function ComparisonGraph({ fill = false, fixedHeight }: { fill?: boolean;
     drag.current = { startY: event.clientY, startHeight: height };
     setDragging(true);
   };
+  const heightAt = (event: React.PointerEvent<HTMLDivElement>, start: { startY: number; startHeight: number }) =>
+    clampHeight(start.startHeight + event.clientY - start.startY);
   const resize = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (drag.current) setHeight(clampHeight(drag.current.startHeight + event.clientY - drag.current.startY));
+    if (drag.current) setHeight(heightAt(event, drag.current));
   };
-  const endResize = () => {
+  const endResize = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!drag.current) return;
+    // From the release position: the last move may not have been rendered yet.
+    // A cancelled drag has no meaningful position, so it keeps the last height.
+    const finalHeight = event.type === 'pointercancel' ? height : heightAt(event, drag.current);
     drag.current = null;
+    setHeight(finalHeight);
     setDragging(false);
     try {
-      localStorage.setItem(HEIGHT_KEY, String(height));
+      localStorage.setItem(HEIGHT_KEY, String(finalHeight));
     } catch {
       // Not saved; the height still applies until the page reloads.
     }
@@ -345,7 +354,7 @@ export function ComparisonGraph({ fill = false, fixedHeight }: { fill?: boolean;
         className={cn(
           'relative overflow-hidden rounded-lg border border-white/10 bg-black/30',
           fill ? 'flex-1' : 'min-h-[80px]',
-          !fill && !dragging && !fixedHeight && 'transition-[height] duration-300',
+          !fill && heightLoaded && !dragging && !fixedHeight && 'transition-[height] duration-300',
         )}
         style={fill ? undefined : { height: fixedHeight ?? height }}
       >
