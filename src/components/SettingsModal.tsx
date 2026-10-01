@@ -1,20 +1,25 @@
 'use client';
 
 import React, { useEffect, useId, useRef, useState } from 'react';
-import { AlertTriangle, Check, Copy, FileText, Image as ImageIcon, Link2, Trash2, X } from 'lucide-react';
+import { AlertTriangle, Check, Copy, FileText, Image as ImageIcon, Link2, Upload } from 'lucide-react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useExport } from '@/hooks/useExport';
 import { useI18n } from '@/hooks/useI18n';
 import { buildWsUrl, isBlockedByMixedContent, parseWsUrl, testConnection, type TestResult } from '@/lib/connection';
 import { buildOverlayUrl } from '@/lib/settings';
-import { THEME_COLORS } from '@/lib/themes';
 import { LANGUAGE_OPTIONS, type TranslationKey } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 import { OVERLAY_SECTIONS, type ConnectionDiagnostic, type Settings } from '@/types';
+import { ThemeSelector } from './ThemeSelector';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
-const CONFIRM_WINDOW_MS = 3_000;
+/** Settings section, separated from the next one by a line. */
+const SECTION = 'relative space-y-4 border-b border-white/10 py-6 last:border-b-0 last:pb-0';
+/** After picking a theme, wait this long before stepping aside so the theme can be seen on the overlay. */
+const THEME_PREVIEW_DELAY_MS = 2_000;
+/** How long the panel stays aside (with a message) before coming back. */
+const PEEK_MS = 3_000;
 
 type BooleanSetting =
   | 'showHeader'
@@ -48,14 +53,14 @@ function LiveSplitSection() {
   const comparisons = state.run.comparisons.length > 0 ? state.run.comparisons : [comparison];
 
   return (
-    <section className="space-y-4">
-      <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('livesplit_title')}</h3>
+    <section className={SECTION}>
+      <h3 className="text-base font-semibold text-accent">{t('livesplit_title')}</h3>
       <p className="text-[11px] leading-relaxed text-[var(--text-dim)]">
         {disabled ? t('livesplit_read_only') : t('livesplit_desc')}
       </p>
       <div className="grid grid-cols-2 gap-3">
         <label className="space-y-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">{t('livesplit_comparison')}</span>
+          <span className="text-xs font-medium text-[var(--text-dim)]">{t('livesplit_comparison')}</span>
           <select
             value={comparison}
             disabled={disabled}
@@ -70,7 +75,7 @@ function LiveSplitSection() {
           </select>
         </label>
         <div className="space-y-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">{t('livesplit_timing')}</span>
+          <span className="text-xs font-medium text-[var(--text-dim)]">{t('livesplit_timing')}</span>
           <div className="grid grid-cols-2 gap-1 rounded-md border border-white/10 bg-black/30 p-1" role="radiogroup">
             {(['RealTime', 'GameTime'] as const).map((method) => (
               <button
@@ -131,8 +136,8 @@ function ObsUrlSection() {
   };
 
   return (
-    <section className="space-y-4">
-      <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('obs_title')}</h3>
+    <section className={SECTION}>
+      <h3 className="text-base font-semibold text-accent">{t('obs_title')}</h3>
       <p className="text-[11px] leading-relaxed text-[var(--text-dim)]">{t('obs_desc')}</p>
       <div className="flex gap-2">
         <select
@@ -177,12 +182,15 @@ function Switch({ checked, onChange, labelledBy }: { checked: boolean; onChange:
       aria-labelledby={labelledBy}
       onClick={onChange}
       className={cn(
-        'relative h-6 w-11 shrink-0 rounded-full transition-colors',
-        checked ? 'bg-accent' : 'bg-white/10',
+        'relative h-[26px] w-12 shrink-0 rounded-full border transition-all',
+        checked ? 'border-accent bg-accent' : 'border-white/10 bg-white/10',
       )}
     >
       <span
-        className={cn('absolute top-1 h-4 w-4 rounded-full bg-white shadow-md transition-all', checked ? 'left-6' : 'left-1')}
+        className={cn(
+          'absolute bottom-0.5 left-0.5 h-5 w-5 rounded-full transition-all',
+          checked ? 'translate-x-[22px] bg-white' : 'bg-[var(--text-dim)]',
+        )}
       />
     </button>
   );
@@ -201,12 +209,12 @@ function SettingRow({
 }) {
   const id = useId();
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-white/5 bg-white/[0.03] p-3">
+    <div className="flex items-center justify-between gap-5 rounded-lg border border-transparent bg-white/[0.03] p-3 transition-all hover:bg-white/5">
       <div>
-        <h4 id={id} className="text-sm font-semibold text-white">
+        <h4 id={id} className="mb-1 text-sm font-semibold text-white">
           {title}
         </h4>
-        <p className="text-[11px] text-[var(--text-dim)]">{desc}</p>
+        <p className="text-xs text-[var(--text-dim)]">{desc}</p>
       </div>
       <Switch checked={checked} onChange={onChange} labelledBy={id} />
     </div>
@@ -283,29 +291,31 @@ function ConnectionSection() {
     status === 'connected' ? 'connection_status' : status === 'disconnected' ? 'connection_disconnected' : 'connection_connecting';
 
   return (
-    <section className="space-y-4">
+    <section className={SECTION}>
       <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('connection_title')}</h3>
-        <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1.5" role="status">
+        <h3 className="text-base font-semibold text-accent">{t('connection_title')}</h3>
+        <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1.5" role="status">
           <span
             className={cn(
-              'h-2 w-2 rounded-full transition-all',
+              'relative h-2 w-2 rounded-full transition-all',
               status === 'connected'
                 ? diagnostic
-                  ? 'bg-amber-500'
-                  : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]'
+                  ? 'bg-[#ffa500]'
+                  : 'bg-ahead shadow-[0_0_0_2px_rgba(64,255,64,0.3)]'
                 : status === 'disconnected'
-                  ? 'bg-red-500'
-                  : 'animate-pulse bg-amber-500',
+                  ? 'bg-behind shadow-[0_0_0_4px_rgba(255,64,64,0.3)]'
+                  : 'animate-pulse bg-[#ffa500] shadow-[0_0_0_4px_rgba(255,165,0,0.3)]',
             )}
           />
-          <span className="text-xs text-[var(--text-dim)]">{t(statusKey)}</span>
+          <span className="text-xs text-[var(--text-dim)]">
+            {status === 'connecting' ? `${t('connection_connecting_to')} ${parseWsUrl(settings.wsUrl).host}` : t(statusKey)}
+          </span>
         </div>
       </div>
 
       <form onSubmit={submit} className="grid grid-cols-[1fr_90px_auto] items-end gap-3">
         <label className="space-y-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">{t('connection_ip')}</span>
+          <span className="text-xs font-medium text-[var(--text-dim)]">{t('connection_ip')}</span>
           <input
             type="text"
             inputMode="url"
@@ -313,29 +323,43 @@ function ConnectionSection() {
             spellCheck={false}
             value={host}
             onChange={(e) => edit(setHost)(e.target.value)}
-            className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-all focus:border-accent focus:outline-none"
+            className="h-[38px] w-full rounded-md border border-white/10 bg-black/30 px-3 font-mono text-sm text-white transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
           />
         </label>
         <label className="space-y-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">{t('connection_port')}</span>
+          <span className="text-xs font-medium text-[var(--text-dim)]">{t('connection_port')}</span>
           <input
             type="text"
             inputMode="numeric"
             autoComplete="off"
             value={port}
             onChange={(e) => edit(setPort)(e.target.value.replace(/\D/g, '').slice(0, 5))}
-            className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-all focus:border-accent focus:outline-none"
+            className="h-[38px] w-full rounded-md border border-white/10 bg-black/30 px-3 font-mono text-sm text-white transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
           />
         </label>
         <button
           type="submit"
           disabled={result === 'testing'}
-          className="h-[38px] rounded-md border border-accent/30 bg-accent/15 px-4 text-xs font-bold text-accent transition-all hover:bg-accent/25 disabled:opacity-50"
+          className={cn(
+            'h-[38px] whitespace-nowrap rounded-md border px-5 text-[13px] font-semibold shadow-[0_4px_15px_rgba(0,0,0,0.3)] transition-all',
+            result === 'ok'
+              ? 'border-ahead/40 bg-ahead/15 text-ahead'
+              : result === 'failed' || result === 'unauthorized' || result === 'invalid' || result === 'wrong-server'
+                ? 'border-behind/40 bg-behind/15 text-behind'
+                : 'border-accent/30 bg-accent/15 text-accent hover:-translate-y-0.5 hover:border-accent hover:bg-accent/25 hover:shadow-[0_8px_25px_rgba(0,0,0,0.4)]',
+            result === 'testing' && 'cursor-wait opacity-70',
+          )}
         >
-          {result === 'testing' ? t('connection_testing') : t('connection_test')}
+          {result === 'testing'
+            ? t('connection_testing')
+            : result === 'ok'
+              ? t('connection_test_success_button')
+              : result === 'idle'
+                ? t('connection_test')
+                : t('connection_test_failed_button')}
         </button>
         <label className="col-span-3 space-y-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-dim)]">{t('connection_token')}</span>
+          <span className="text-xs font-medium text-[var(--text-dim)]">{t('connection_token')}</span>
           <input
             type="password"
             autoComplete="off"
@@ -343,15 +367,15 @@ function ConnectionSection() {
             value={token}
             placeholder={t('connection_token_placeholder')}
             onChange={(e) => edit(setToken)(e.target.value)}
-            className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 font-mono text-sm text-white placeholder:font-sans placeholder:text-white/30 transition-all focus:border-accent focus:outline-none"
+            className="h-[38px] w-full rounded-md border border-white/10 bg-black/30 px-3 font-mono text-sm text-white placeholder:font-sans placeholder:text-white/30 transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/10"
           />
         </label>
       </form>
 
-      {result === 'ok' && <p className="text-xs text-green-400">{t('connection_test_success')}</p>}
-      {result === 'failed' && <p className="text-xs text-red-400">{t('connection_test_failed')}</p>}
-      {result === 'invalid' && <p className="text-xs text-red-400">{t('connection_invalid')}</p>}
-      {result === 'unauthorized' && <p className="text-xs text-red-400">{t('connection_unauthorized')}</p>}
+      {result === 'ok' && <p className="text-xs text-ahead">{t('connection_test_success')}</p>}
+      {result === 'failed' && <p className="text-xs text-behind">{t('connection_test_failed')}</p>}
+      {result === 'invalid' && <p className="text-xs text-behind">{t('connection_invalid')}</p>}
+      {result === 'unauthorized' && <p className="text-xs text-behind">{t('connection_unauthorized')}</p>}
 
       {server && (
         <p className="text-[11px] text-[var(--text-dim)]">
@@ -418,16 +442,19 @@ function LanguagePicker() {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={t('language_label')}
-        className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 transition-all hover:bg-white/10"
+        className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 transition-all hover:border-accent hover:bg-white/10"
       >
-        <span className="text-lg">{current.flag}</span>
-        <span className="text-xs font-bold uppercase text-white">{current.code}</span>
+        <span className="text-base">{current.flag}</span>
+        <span className="text-xs font-semibold uppercase text-white">{current.code}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="text-[var(--text-dim)]" aria-hidden>
+          <path d="M7 10l5 5 5-5z" />
+        </svg>
       </button>
       {open && (
         <ul
           role="listbox"
           aria-label={t('language_label')}
-          className="absolute left-0 top-full z-[60] mt-2 w-56 rounded-lg border border-white/10 bg-[var(--bg-main)] p-2 shadow-xl"
+          className="absolute left-0 top-full z-[60] mt-2 min-w-[240px] rounded-lg border border-white/10 bg-[var(--bg-main)] p-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)] [animation:fade-in_0.2s_ease]"
         >
           {LANGUAGE_OPTIONS.map((lang) => (
             <li key={lang.code}>
@@ -440,11 +467,11 @@ function LanguagePicker() {
                   setOpen(false);
                 }}
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-white/5',
+                  'flex w-full items-center gap-3 rounded-md px-3 py-2.5 transition-colors hover:bg-white/5',
                   settings.language === lang.code && 'bg-accent/15',
                 )}
               >
-                <span>{lang.flag}</span>
+                <span className="text-lg">{lang.flag}</span>
                 <span className="text-sm text-white">{lang.name}</span>
               </button>
             </li>
@@ -455,13 +482,114 @@ function LanguagePicker() {
   );
 }
 
+const TOGGLE_MESSAGES: Partial<Record<BooleanSetting, [on: TranslationKey, off: TranslationKey]>> = {
+  showHeader: ['notification_header_enabled', 'notification_header_disabled'],
+  showTimer: ['notification_timer_enabled', 'notification_timer_disabled'],
+  showPredictions: ['notification_predictions_enabled', 'notification_predictions_disabled'],
+  showControls: ['notification_controls_enabled', 'notification_controls_disabled'],
+  showGraph: ['notification_graph_enabled', 'notification_graph_disabled'],
+  showTable: ['notification_table_enabled', 'notification_table_disabled'],
+};
+
+/** Shown while disconnected: what to check, as before. */
+function ConnectionProblem() {
+  const { status, unauthorized } = useLiveSplit();
+  const { t } = useI18n();
+  if (status !== 'disconnected' || unauthorized) return null;
+  return (
+    <div
+      role="alert"
+      className="relative mt-6 overflow-hidden rounded-lg border-2 border-[#ff6666] bg-behind p-4 pl-5 shadow-[0_0_20px_rgba(255,64,64,0.5)] [animation:fade-in_0.3s_ease]"
+    >
+      <span className="absolute inset-y-0 left-0 w-1 bg-white" aria-hidden />
+      <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-white">
+        <AlertTriangle size={16} className="shrink-0" />
+        {t('error_notification_title')}
+      </p>
+      <div className="text-xs leading-normal text-white/90">
+        {t('error_notification_text')}
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          {(['error_notification_1', 'error_notification_2', 'error_notification_3', 'error_notification_4'] as const).map((key) => (
+            <li key={key}>{t(key)}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+/** Resets every setting; asks first whether to keep the LiveSplit address. */
+function ResetSection({ onReset }: { onReset: (keepConnection: boolean) => void }) {
+  const { t } = useI18n();
+  const [asking, setAsking] = useState(false);
+  const choice =
+    'flex-1 rounded-lg border px-3 py-2.5 text-[13px] font-semibold transition-all hover:-translate-y-0.5';
+  return (
+    <section className={SECTION}>
+      <div className="flex flex-col gap-3 rounded-lg border border-behind/15 bg-behind/5 p-3">
+        <div className="flex items-start gap-4">
+          <AlertTriangle size={24} className="shrink-0 text-behind" />
+          <p className="text-xs leading-normal text-[var(--text-dim)]">
+            {asking ? t('reset_ip_port_message') : t('reset_warning_text')}
+          </p>
+        </div>
+        {asking ? (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => onReset(true)}
+              className={cn(choice, 'border-behind/40 bg-behind/10 text-behind hover:bg-behind/20')}
+            >
+              {t('reset_keep_current')}
+            </button>
+            <button
+              type="button"
+              onClick={() => onReset(false)}
+              className={cn(choice, 'border-behind/40 bg-behind/10 text-behind hover:bg-behind/20')}
+            >
+              {t('reset_restore_default')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAsking(false)}
+              className={cn(choice, 'border-white/10 bg-white/5 text-white hover:bg-white/10')}
+            >
+              {t('reset_cancel')}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAsking(true)}
+            className="w-full rounded-lg border border-behind/30 bg-behind/10 px-4 py-3 text-sm font-semibold text-behind shadow-[0_4px_12px_rgba(255,64,64,0.2)] transition-all hover:-translate-y-0.5 hover:border-behind hover:bg-behind/20 hover:shadow-[0_6px_20px_rgba(255,64,64,0.3)]"
+          >
+            {t('reset_button')}
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** "Made with 🧠 by Movisterium, with AI support", with the name highlighted. */
+function Credits() {
+  const { t } = useI18n();
+  const [before, after = ''] = t('made_with').split('{0}');
+  return (
+    <p className="text-xs text-[var(--text-dim)]">
+      {before}
+      <strong className="text-accent">Movisterium</strong>
+      {after}
+    </p>
+  );
+}
+
 function SettingsDialog({ onClose }: { onClose: () => void }) {
   const { settings, overriddenKeys, updateSettings, resetSettings } = useSettings();
   const { t } = useI18n();
   const { exportCSV, exportImage, canExport } = useExport();
-  const [exportFailed, setExportFailed] = useState(false);
-  const [confirmResetAt, setConfirmResetAt] = useState<number | null>(null);
-  // Bumped on "reset settings" so the connection form reloads the default address.
+  const [exporting, setExporting] = useState<'image' | 'csv' | null>(null);
+  // Bumped on "reset settings" so the connection form reloads the address.
   const [formGeneration, setFormGeneration] = useState(0);
   const closeRef = useRef<HTMLButtonElement>(null);
   const onCloseRef = useRef(onClose);
@@ -471,11 +599,25 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     onCloseRef.current = onClose;
   }, [onClose]);
 
+  // After a change you can see on the overlay, the panel steps aside for a
+  // moment with a message, then comes back.
+  const [peek, setPeek] = useState<string | null>(null);
+  const peekRef = useRef<string | null>(null);
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(peekTimer.current), []);
+
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current();
+      if (event.key !== 'Escape') return;
+      // Escape first brings the panel back, then closes it.
+      if (peekRef.current) {
+        clearTimeout(peekTimer.current);
+        setPeek(null);
+      } else {
+        onCloseRef.current();
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {
@@ -484,32 +626,107 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
+  // While aside the panel is inert, which drops focus; give it back to the control that had it.
+  const focusBeforePeek = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (confirmResetAt === null) return;
-    const id = setTimeout(() => setConfirmResetAt(null), CONFIRM_WINDOW_MS);
-    return () => clearTimeout(id);
-  }, [confirmResetAt]);
+    peekRef.current = peek;
+    if (!peek && focusBeforePeek.current) {
+      if (focusBeforePeek.current.isConnected) focusBeforePeek.current.focus();
+      focusBeforePeek.current = null;
+    }
+  }, [peek]);
+  const endPeek = () => {
+    clearTimeout(peekTimer.current);
+    setPeek(null);
+  };
+  const showPeek = (message: string, delay = 0) => {
+    endPeek();
+    const start = () => {
+      // Taken before the panel turns inert and drops the focus.
+      focusBeforePeek.current ??= document.activeElement as HTMLElement | null;
+      setPeek(message);
+      peekTimer.current = setTimeout(() => setPeek(null), PEEK_MS);
+    };
+    if (delay > 0) peekTimer.current = setTimeout(start, delay);
+    else start();
+  };
 
-  const toggle = (key: BooleanSetting) => updateSettings({ [key]: !settings[key] } as Partial<Settings>);
+  const selectTheme = (themeId: string) => {
+    updateSettings({ theme: themeId });
+    showPeek(`${t('theme_applying')} ${t(`theme_${themeId}` as TranslationKey)}...`, THEME_PREVIEW_DELAY_MS);
+  };
+
+  const toggle = (key: BooleanSetting) => {
+    const enabled = !settings[key];
+    updateSettings({ [key]: enabled } as Partial<Settings>);
+    const messages = TOGGLE_MESSAGES[key];
+    if (messages) showPeek(t(messages[enabled ? 0 : 1]));
+  };
+
+  const toggleTransparent = () => {
+    const enabled = !settings.chromaKey.enabled;
+    updateSettings({ chromaKey: { enabled } });
+    showPeek(t(enabled ? 'notification_chroma_key_enabled' : 'notification_chroma_key_disabled'));
+  };
+
+  const saveImage = async () => {
+    setExporting('image');
+    const ok = await exportImage();
+    setExporting(null);
+    showPeek(t(ok ? 'notification_capture_success' : 'export_failed'));
+  };
+
+  const saveCsv = () => {
+    setExporting('csv');
+    const ok = exportCSV();
+    setExporting(null);
+    showPeek(t(ok ? 'notification_csv_success' : 'export_failed'));
+  };
+
+  const reset = (keepConnection: boolean) => {
+    // The address in use, which may come from the page URL rather than the saved settings.
+    resetSettings(keepConnection ? { keep: { wsUrl: settings.wsUrl, token: settings.token } } : {});
+    setFormGeneration((n) => n + 1);
+  };
+
+  const exportButton =
+    'flex items-center justify-center gap-2 rounded-lg border bg-white/5 px-4 py-3 text-sm font-medium shadow-[0_4px_12px_rgba(0,0,0,0.2)] transition-all hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.3)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-40';
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+      className={cn(
+        'fixed inset-0 z-50 flex items-center justify-center p-4 transition-colors duration-300 [animation:fade-in_0.3s_ease] max-sm:p-0',
+        peek ? 'bg-transparent' : 'bg-black/85',
+      )}
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
+        // While the panel is aside, a click brings it back instead of reaching the overlay.
+        if (peek) endPeek();
+        else if (event.target === event.currentTarget) onClose();
       }}
       data-export-ignore
     >
+      {peek && (
+        <div
+          role="status"
+          className="pointer-events-none fixed inset-x-4 bottom-20 mx-auto w-fit rounded-lg border-2 border-accent bg-accent px-8 py-[18px] text-center text-base font-bold text-[color:var(--accent-fg)] shadow-[0_8px_32px_var(--theme-accent)] [animation:fade-in_0.3s_ease] max-sm:bottom-[60px] max-sm:w-auto"
+        >
+          {peek}
+        </div>
+      )}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="flex max-h-full w-full max-w-lg flex-col overflow-hidden rounded-lg border border-white/10 bg-[var(--bg-main)] shadow-2xl"
+        inert={!!peek}
+        className={cn(
+          'flex max-h-[90vh] w-full max-w-[500px] flex-col overflow-hidden rounded-lg border border-white/10 bg-[var(--bg-main)] shadow-[0_40px_80px_rgba(0,0,0,0.6)] transition-opacity duration-300 [animation:modal-in_0.3s_ease] max-sm:h-full max-sm:max-h-full max-sm:max-w-full max-sm:rounded-none',
+          peek && 'pointer-events-none opacity-0',
+        )}
       >
-        <div className="flex items-center justify-between border-b border-white/10 bg-black/30 p-5">
+        <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-black/30 px-6 py-5">
           <div className="flex items-center gap-4">
             <LanguagePicker />
-            <h2 id={titleId} className="text-xl font-bold text-accent">
+            <h2 id={titleId} className="text-xl font-semibold text-accent">
               {t('settings_title')}
             </h2>
           </div>
@@ -519,15 +736,16 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
             onClick={onClose}
             aria-label={t('settings_close')}
             title={t('settings_close')}
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/5 text-white transition-all hover:border-red-500 hover:bg-red-500/10 hover:text-red-500"
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-white/5 text-xl leading-none text-[var(--text-dim)] shadow-[0_2px_8px_rgba(0,0,0,0.3)] transition-all hover:scale-110 hover:border-behind hover:bg-behind/10 hover:text-behind hover:shadow-[0_4px_15px_rgba(255,64,64,0.3)]"
           >
-            <X size={20} />
+            ×
           </button>
         </div>
 
-        <div className="flex-1 space-y-8 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-6 pb-6">
+          <ConnectionProblem />
           {overriddenKeys.length > 0 && (
-            <p className="flex gap-2 rounded-md border border-accent/30 bg-accent/10 p-3 text-xs text-white/80">
+            <p className="mt-6 flex gap-2 rounded-md border border-accent/30 bg-accent/10 p-3 text-xs text-white/80">
               <Link2 size={14} className="mt-0.5 shrink-0 text-accent" />
               {t('url_overrides_notice')}
             </p>
@@ -535,40 +753,20 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           <ConnectionSection key={formGeneration} />
           <LiveSplitSection />
 
-          <section className="space-y-4">
-            <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('theme_title')}</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {Object.entries(THEME_COLORS).map(([themeId, colors]) => (
-                <button
-                  key={themeId}
-                  type="button"
-                  aria-pressed={settings.theme === themeId}
-                  onClick={() => updateSettings({ theme: themeId })}
-                  className={cn(
-                    'relative flex h-14 flex-col items-center justify-center overflow-hidden rounded-lg border-2 transition-all',
-                    settings.theme === themeId ? 'border-accent' : 'border-white/10 hover:border-white/30',
-                  )}
-                  style={{
-                    background: `linear-gradient(135deg, ${colors.bg} 0%, ${colors.bg} 50%, ${colors.accent} 50%, ${colors.accent} 100%)`,
-                  }}
-                >
-                  <span className="relative z-10 text-[10px] font-bold uppercase text-white drop-shadow-md">
-                    {t(`theme_${themeId}` as TranslationKey)}
-                  </span>
-                </button>
-              ))}
-            </div>
+          <section className={SECTION}>
+            <h3 className="text-base font-semibold text-accent">{t('theme_title')}</h3>
+            <ThemeSelector value={settings.theme} onSelect={selectTheme} />
             <SettingRow
               title={t('theme_transparent')}
               desc={t('theme_transparent_desc')}
               checked={settings.chromaKey.enabled}
-              onChange={() => updateSettings({ chromaKey: { enabled: !settings.chromaKey.enabled } })}
+              onChange={toggleTransparent}
             />
           </section>
 
-          <section className="space-y-4">
-            <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('display_title')}</h3>
-            <div className="space-y-3">
+          <section className={SECTION}>
+            <h3 className="text-base font-semibold text-accent">{t('display_title')}</h3>
+            <div className="space-y-4">
               {TOGGLES.map((opt) => (
                 <SettingRow
                   key={opt.key}
@@ -583,68 +781,49 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
 
           <ObsUrlSection />
 
-          <section className="space-y-4">
-            <h3 className="text-base font-semibold uppercase tracking-wider text-accent">{t('export_title')}</h3>
-            <div className="space-y-4 rounded-lg border border-white/5 bg-white/[0.03] p-4">
+          <section className={SECTION}>
+            <h3 className="text-base font-semibold text-accent">{t('export_title')}</h3>
+            <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/[0.03] p-3">
               <div className="flex items-start gap-4">
-                <div className="rounded-lg bg-white/5 p-2">
-                  <FileText size={24} className="text-accent" />
-                </div>
+                <Upload size={24} className="shrink-0 text-white" />
                 <div>
-                  <h4 className="text-sm font-semibold text-white">{t('export_save')}</h4>
-                  <p className="text-[11px] text-[var(--text-dim)]">{t('export_desc')}</p>
+                  <h4 className="mb-1 text-sm font-semibold text-white">{t('export_save')}</h4>
+                  <p className="text-xs text-[var(--text-dim)]">{t('export_desc')}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  disabled={!canExport}
-                  onClick={async () => setExportFailed(!(await exportImage()))}
-                  className="flex items-center justify-center gap-2 rounded-md border border-accent/30 bg-accent/10 px-4 py-2.5 text-xs font-bold text-accent transition-all hover:bg-accent/20 disabled:opacity-40"
+                  disabled={!canExport || exporting !== null}
+                  onClick={saveImage}
+                  title={t('tooltip_export_image')}
+                  className={cn(exportButton, 'border-[#00a2ff] text-[#00a2ff] hover:bg-[#00a2ff]/15')}
                 >
-                  <ImageIcon size={16} />
-                  {t('export_image')}
+                  <ImageIcon size={18} />
+                  {exporting === 'image' ? t('export_capturing') : t('export_image')}
                 </button>
                 <button
                   type="button"
-                  disabled={!canExport}
-                  onClick={exportCSV}
-                  className="flex items-center justify-center gap-2 rounded-md border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs font-bold text-green-500 transition-all hover:bg-green-500/20 disabled:opacity-40"
+                  disabled={!canExport || exporting !== null}
+                  onClick={saveCsv}
+                  title={t('tooltip_export_csv')}
+                  className={cn(exportButton, 'border-ahead text-ahead hover:bg-ahead/15')}
                 >
-                  <FileText size={16} />
-                  {t('export_csv')}
+                  <FileText size={18} />
+                  {exporting === 'csv' ? t('export_generating') : t('export_csv')}
                 </button>
               </div>
-              {exportFailed && <p className="text-xs text-red-400">{t('export_failed')}</p>}
             </div>
           </section>
+
+          <ResetSection key={`reset-${formGeneration}`} onReset={reset} />
         </div>
 
-        <div className="flex items-center justify-between gap-4 border-t border-white/10 bg-black/20 p-5">
-          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-dim)]">
-              {t('version_label')} {APP_VERSION}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (confirmResetAt !== null) {
-                resetSettings();
-                setFormGeneration((n) => n + 1);
-                setConfirmResetAt(null);
-              } else {
-                setConfirmResetAt(Date.now());
-              }
-            }}
-            className={cn(
-              'flex items-center gap-2 text-right text-xs font-bold transition-colors',
-              confirmResetAt !== null ? 'text-red-400' : 'text-red-500/70 hover:text-red-500',
-            )}
-          >
-            <Trash2 size={14} className="shrink-0" />
-            {confirmResetAt !== null ? t('reset_warning') : t('reset_button')}
-          </button>
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-4 border-t border-white/10 bg-gradient-to-b from-black/20 to-black/30 px-5 py-3.5 max-sm:flex-col max-sm:text-center">
+          <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-[var(--text-dim)] transition-all hover:border-accent hover:bg-white/[0.08]">
+            {t('version_label')} {APP_VERSION}
+          </span>
+          <Credits />
         </div>
       </div>
     </div>

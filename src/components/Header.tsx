@@ -22,8 +22,14 @@ export function Header() {
     wrContent = <span>{t('wr_display')}: {t('wr_error')}</span>;
   } else if (worldRecord.status === 'ok') {
     const record = worldRecord.record;
+    const recordTime = formatTime(record?.timeMs ?? null);
+    const players = record?.players.join(', ') ?? '';
+    const tooltip = record
+      ? `${t('tooltip_wr').replace('{0}', recordTime).replace('{1}', players)}${record.url ? `\n${t('tooltip_wr_click')}` : ''}`
+      : undefined;
     wrContent = record ? (
       <a
+        title={tooltip}
         href={record.url ?? undefined}
         target="_blank"
         rel="noopener noreferrer"
@@ -41,28 +47,26 @@ export function Header() {
   }
 
   return (
-    <header className="relative flex min-h-[70px] shrink-0 flex-col gap-1 border-b border-white/10 bg-black/30 p-3 px-4">
-      <div className="flex items-center gap-3 pr-10">
+    <header className="relative flex min-h-[70px] shrink-0 flex-col justify-center gap-1 border-b border-white/10 px-4 py-3">
+      <div className="flex min-w-0 items-center gap-3 pr-10">
         {run?.gameIcon && (
           // Data URL sent by LiveSplit; next/image adds nothing here.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={run.gameIcon} alt="" className="h-9 w-9 shrink-0 rounded object-contain" />
+          <img src={run.gameIcon} alt="" className="h-6 w-6 shrink-0 rounded object-contain" />
         )}
-        <div className="flex min-w-0 flex-col">
-          <h1 className="truncate text-base font-bold leading-tight text-accent" title={run?.gameName}>
-            {run?.gameName || '-'}
-          </h1>
-          <p className="truncate font-mono text-[11px] tracking-tight text-[var(--text-dim)]" title={run?.categoryName}>
-            {run?.categoryName || '-'}
-            {state && comparison !== PERSONAL_BEST && ` · ${t('comparison_vs')} ${comparison}`}
-            {state && timingMethod === 'GameTime' && (
-              <span className="ml-1.5 rounded border border-white/15 px-1 text-[9px] uppercase">IGT</span>
-            )}
-          </p>
-        </div>
+        <h1 className="min-w-0 truncate text-base font-semibold text-accent" title={run?.gameName}>
+          {run?.gameName || '-'}
+        </h1>
+        <p className="min-w-0 max-w-[200px] shrink truncate font-mono text-[11px] tracking-[-0.2px] text-[var(--text-dim)]" title={run?.categoryName}>
+          {run?.categoryName || '-'}
+          {state && comparison !== PERSONAL_BEST && ` · ${t('comparison_vs')} ${comparison}`}
+          {state && timingMethod === 'GameTime' && (
+            <span className="ml-1.5 rounded border border-white/15 px-1 text-[9px] uppercase">IGT</span>
+          )}
+        </p>
       </div>
 
-      <div className="flex min-w-0 items-center gap-4 font-mono text-[11px] tracking-tight text-[var(--text-dim)]">
+      <div className="flex min-w-0 items-center gap-4 font-mono text-[11px] tracking-[-0.2px] text-[var(--text-dim)]">
         <span className="shrink-0">
           {t('pb_display')}: {formatTime(pb)}
         </span>

@@ -20,9 +20,72 @@ body {
 
 body {
   color: white;
+  line-height: 1.4;
+  /* Keeps the overlay readable on top of any game footage in transparent mode. */
+  text-shadow:
+    0 0 8px #000,
+    0 0 15px rgba(0, 0, 0, 0.8);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.2) rgba(0, 0, 0, 0.2);
+}
+
+/* The settings panel sits on its own background and needs no shadow. */
+[role='dialog'],
+[role='dialog'] * {
+  text-shadow: none;
+}
+
+.splits-scroll {
+  scrollbar-color: rgba(var(--theme-accent-rgb), 0.5) rgba(0, 0, 0, 0.2);
+}
+
+.splits-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.splits-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+.splits-scroll::-webkit-scrollbar-thumb {
+  background: rgba(var(--theme-accent-rgb), 0.5);
+  border-radius: 3px;
+}
+
+.splits-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--theme-accent-rgb), 0.8);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

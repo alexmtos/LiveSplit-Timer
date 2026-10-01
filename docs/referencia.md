@@ -8,10 +8,15 @@ Esta página lista todas as opções do LiveSplit Timer, os parâmetros de URL, 
 |--------|-----------|-----------|
 | Painel de configurações | `localStorage` do navegador (chave `livesplit-settings`) | Todas as páginas do mesmo navegador |
 | Parâmetros de URL | A própria URL | Apenas a página aberta com aquela URL; nunca são salvos |
+| Altura do gráfico | `localStorage` do navegador (chave `ls_graph_height`) | Todas as páginas do mesmo navegador |
 
 Quando uma opção aparece nos dois lugares, o valor da URL tem prioridade. Se você alterar essa opção no painel, o valor do painel passa a valer para a página e é salvo. O painel mostra um aviso sempre que alguma opção vem da URL.
 
 ## Opções do painel
+
+Se o app não conseguir se conectar ao LiveSplit até 3 segundos depois de abrir a página, o painel abre sozinho, com uma lista do que verificar. Isso não acontece no modo stream nem nas [páginas de uma seção](#páginas), para o painel nunca aparecer na live.
+
+Ao mudar o tema ou uma opção que muda o overlay, o painel sai da frente por 3 segundos e mostra uma mensagem, para você ver o resultado. Clique em qualquer lugar para trazê-lo de volta antes.
 
 ### Conexão
 
@@ -41,7 +46,9 @@ As opções ficam desativadas quando o componente está em modo somente leitura.
 | Opção | Padrão | Descrição |
 |-------|--------|-----------|
 | Tema | Padrão | Um dos 11 temas: `default`, `dark`, `purple`, `orange`, `retro`, `blue`, `green`, `pink`, `matrix`, `sunset`, `midnight`. |
-| Modo Transparente | Desligado | Remove o fundo da página para uso no OBS. |
+| Modo Transparente | Desligado | Remove o fundo e a borda da página para uso no OBS. |
+
+Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nome para ver todos os temas. Dois segundos depois da troca, o painel sai da frente para mostrar o tema no overlay.
 
 ### Exibição
 
@@ -50,12 +57,18 @@ As opções ficam desativadas quando o componente está em modo somente leitura.
 | Mostrar cabeçalho | Ligado | Jogo, categoria, PB e recorde mundial. |
 | Mostrar timer | Ligado | Timer principal e delta atual. |
 | Mostrar previsões | Ligado | Tempo ideal e previsão atual. |
-| Mostrar controles do timer | Ligado | Botões de iniciar, pausar, pular, desfazer e resetar. |
 | Mostrar gráfico de comparação | Ligado | Gráfico do delta ao longo da run. |
+| Mostrar controles do timer | Ligado | Botões de iniciar, pausar, pular, desfazer e resetar, abaixo do gráfico. |
 | Mostrar tabela de splits | Ligado | Lista de splits, agrupada por seção. |
 | Splits sempre expandidos | Desligado | Mostra os subsplits de todas as seções. Desligado, só a seção atual e as que você abrir ficam expandidas. |
 | Atalhos de teclado | Ligado | Ativa os [atalhos de teclado](#atalhos-de-teclado) da página. |
 | Modo stream | Desligado | Esconde a engrenagem até o cursor passar sobre ela. |
+
+As seções aparecem nesta ordem: cabeçalho, timer, previsões, gráfico, controles e tabela de splits.
+
+### Redefinir configurações
+
+**Redefinir Configurações**, no fim do painel, volta todas as opções ao padrão. Antes, o painel pergunta se você quer manter o IP, a porta e o token atuais ou restaurar o endereço padrão (`localhost:15721`).
 
 ### Idioma
 
@@ -86,7 +99,7 @@ http://localhost:3000/?host=192.168.0.10&theme=matrix&transparent=1&stream=1&hid
 | `show` | Lista de seções | Mostra as seções listadas. |
 
 - **Booleanos:** `1`, `true`, `yes`, `on`, `sim` ou o parâmetro sem valor ligam a opção; `0`, `false`, `no`, `off`, `nao` desligam.
-- **Seções:** `header`, `timer`, `predictions`, `controls`, `graph`, `splits` (`table` também é aceito), separadas por vírgula.
+- **Seções:** `header`, `timer`, `predictions`, `graph`, `controls`, `splits` (`table` também é aceito), separadas por vírgula.
 - Valores inválidos são ignorados, e a opção continua com o valor salvo.
 
 > **Dica:** em vez de montar a URL à mão, use **URL para o OBS** no painel de configurações. Ela gera a URL com as opções atuais para a página escolhida.
@@ -105,6 +118,19 @@ http://localhost:3000/?host=192.168.0.10&theme=matrix&transparent=1&stream=1&hid
 
 As páginas de uma seção ignoram as opções de exibição e sempre mostram a sua seção. `hide` e `show` só afetam a página `/`.
 
+## Gráfico e tabela de splits
+
+| Ação | Resultado |
+|------|-----------|
+| Clicar num ponto do gráfico | Seleciona o split: o ponto ganha um anel com o delta, e a linha da tabela é destacada, com a seção aberta. Clique de novo para desfazer. |
+| Clicar numa linha da tabela | Seleciona o split do mesmo jeito, destacando o ponto no gráfico. Só funciona em splits já feitos, pulados ou no atual. |
+| Clicar no nome de uma seção | Abre ou fecha a seção. Seções abertas à mão fecham de novo quando a run passa para outro split. |
+| Arrastar a borda de baixo do gráfico | Ajusta a altura do gráfico entre 80 e 400 pixels. A altura fica salva no navegador. |
+
+O gráfico marca o fim de cada seção com uma linha tracejada e o nome da seção. Embaixo, mostra o delta do primeiro e do último ponto, do melhor e do pior, e do fim de cada seção. Splits pulados aparecem com um X vermelho. Com a run em andamento, o ponto atual acompanha o delta ao vivo quando ele aparece no LiveSplit.
+
+Runs com um único split não mostram o gráfico nem a tabela.
+
 ## Atalhos de teclado
 
 | Tecla | Ação |
@@ -121,10 +147,10 @@ Os atalhos ignoram teclas seguradas e combinações com Ctrl, Alt ou Cmd, não f
 
 | Formato | Conteúdo |
 |---------|----------|
-| Imagem (PNG) | O overlay com o fundo do tema, sem os botões. |
+| Imagem (PNG) | A run inteira em 500 pixels de largura (o dobro em resolução), com todas as seções abertas, o gráfico com 300 pixels de altura e sem os botões. Segue as opções de exibição. |
 | CSV | Uma linha por segmento: seção, nome, tempo, tempo do segmento, tempo da comparação atual, delta e melhor segmento. Separado por `;`, em UTF-8, compatível com o Excel. |
 
-O nome do arquivo usa o jogo e a categoria, por exemplo `Super Mario 64 - 16 Star.csv`.
+O nome do arquivo usa o jogo, a categoria, a data e a hora, por exemplo `Super Mario 64 - 16 Star 2026-10-01_21-05-09.csv`, para uma exportação não substituir a anterior.
 
 ## Versões do componente
 

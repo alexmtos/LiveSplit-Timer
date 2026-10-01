@@ -8,6 +8,7 @@
  *
  *   npm run mock:server -- [--port 15721] [--scale 1] [--game-time] [--src]
  *                          [--token <token>] [--read-only] [--legacy] [--broken]
+ *                          [--segments <n>]
  *
  * --scale      multiplies every PB/best segment time (e.g. 0.05 for a quick run).
  * --game-time  starts with GameTime as the timing method (game time runs 3%
@@ -17,6 +18,8 @@
  * --token      requires ?token=<token>, like the component's Token setting.
  * --read-only  refuses control actions, like the component's Read only setting.
  * --legacy     behaves like component 1.x: protocol 1 only, ?protocol=2 ignored.
+ * --segments   uses a generated run with <n> splits in sections of 8, for
+ *              checking long runs.
  * --broken     cannot build the greeting, like a component built for another
  *              LiveSplit version: closes every connection with 1011.
  */
@@ -42,7 +45,7 @@ const ICON_RED = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAf
 const ICON_BLUE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==';
 
 // [name, PB segment seconds, best segment seconds, icon]
-const SEGMENTS = [
+const FIXTURE = [
   ['Intro', 42.3, 40.1, ICON_RED],
   ['-1-1', 61.2, 58.7, null],
   ['-1-2', 75.8, 71.0, null],
@@ -51,6 +54,18 @@ const SEGMENTS = [
   ['{World 2}Castle', 102.6, 98.9, null],
   ['Final Boss', 130.0, 121.4, ICON_RED],
 ];
+
+const segmentCount = Number(option('segments', '0'));
+// Generated run: sections of 7 subsplits plus the section split, times varying around 60 s.
+const SEGMENTS =
+  segmentCount > 0
+    ? Array.from({ length: segmentCount }, (_, i) => {
+        const section = Math.floor(i / 8) + 1;
+        const last = i % 8 === 7 || i === segmentCount - 1;
+        const pb = 50 + ((i * 37) % 23);
+        return [last ? `{Area ${section}}Boss ${section}` : `-${section}-${(i % 8) + 1}`, pb, pb - 2 - ((i * 13) % 5), i % 8 === 0 ? ICON_RED : null];
+      })
+    : FIXTURE;
 
 const ms = (seconds) => Math.round(seconds * 1000 * scale);
 const time = (realTime) => ({

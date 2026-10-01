@@ -60,6 +60,7 @@ npm run mock:server -- --scale 0.05
 | `--read-only` | Recusa os comandos de controle, como a opção **Read only** do componente |
 | `--legacy` | Imita o componente 1.x: só protocolo 1, ignorando `?protocol=2` |
 | `--broken` | Imita um componente feito para outra versão do LiveSplit: fecha toda conexão com o código 1011 sem enviar o estado |
+| `--segments <n>` | Usa uma run gerada com `<n>` splits, em seções de 8, para testar runs longas |
 
 ## Arquitetura
 

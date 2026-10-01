@@ -17,21 +17,26 @@ export function TimerDisplay({ fill = false }: { fill?: boolean }) {
   const delta = state ? currentDelta(state, currentTime, comparison, timingMethod) : null;
   const time = formatTimeParts(displayTime);
 
-  const timerColor =
-    phase === 'Paused' ? 'text-gray-400' : phase === 'NotRunning' || !delta ? 'text-white' : deltaTextClass(delta.value);
+  const paused = phase === 'Paused';
+  const timerColor = paused
+    ? 'text-neutral opacity-70'
+    : phase === 'NotRunning' || !delta
+      ? 'text-white'
+      : deltaTextClass(delta.value);
+  const deltaColor = delta ? cn(deltaTextClass(delta.value), paused && 'opacity-50') : 'text-white';
 
   return (
     <div
       className={cn(
-        'flex min-h-[90px] shrink-0 items-center justify-between gap-4 border-b border-white/10 bg-black/20 p-4 px-5',
+        'flex min-h-[90px] shrink-0 items-center justify-between gap-4 border-b border-white/10 px-5 py-4',
         fill && 'flex-1 border-b-0 [container-type:size]',
       )}
     >
       <div
         className={cn(
-          'font-mono text-3xl font-bold tracking-tighter transition-colors',
+          'font-mono text-[2rem] font-bold tracking-[-0.5px] transition-colors',
           fill && 'text-[length:min(12cqw,40cqh)]',
-          deltaTextClass(delta?.value),
+          deltaColor,
         )}
         aria-live="off"
       >
@@ -40,7 +45,7 @@ export function TimerDisplay({ fill = false }: { fill?: boolean }) {
 
       <div
         className={cn(
-          'font-mono text-6xl font-extrabold leading-[0.9] tracking-tighter tabular-nums transition-colors',
+          'font-mono text-[3.5rem] font-extrabold leading-[0.9] tracking-[-1px] tabular-nums transition-colors',
           fill && 'text-[length:min(22cqw,75cqh)]',
           timerColor,
           !isConnected && 'opacity-30',

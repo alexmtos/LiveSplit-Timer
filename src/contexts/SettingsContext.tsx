@@ -18,7 +18,8 @@ interface SettingsContextType {
   /** False until the saved settings have been read from localStorage. */
   isLoaded: boolean;
   updateSettings: (updates: Partial<Settings>) => void;
-  resetSettings: () => void;
+  /** Back to the defaults; `keep` sets the LiveSplit address and token to keep. */
+  resetSettings: (options?: { keep?: Pick<Settings, 'wsUrl' | 'token'> }) => void;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -67,8 +68,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const resetSettings = useCallback(() => {
-    setSaved({ ...DEFAULT_SETTINGS, language: browserLanguage() });
+  const resetSettings = useCallback((options: { keep?: Pick<Settings, 'wsUrl' | 'token'> } = {}) => {
+    setSaved({
+      ...DEFAULT_SETTINGS,
+      language: browserLanguage(),
+      ...(options.keep && { wsUrl: options.keep.wsUrl, token: options.keep.token }),
+    });
     setOverrides({});
   }, []);
 

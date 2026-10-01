@@ -19,6 +19,9 @@ export const THEME_COLORS: Record<string, ThemeColors> = {
   midnight: { bg: '#00072d', text: '#5465ff', accent: '#6c5ce7', accentRgb: '108, 92, 231' },
 };
 
+/** Themes in the order the selector cycles through them. */
+export const THEME_IDS = Object.keys(THEME_COLORS);
+
 export function getTheme(id: string): ThemeColors {
   return THEME_COLORS[id] ?? THEME_COLORS.default;
 }

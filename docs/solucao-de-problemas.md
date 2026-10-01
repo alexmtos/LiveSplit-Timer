@@ -4,7 +4,7 @@ Encontre aqui a causa e a solução dos problemas mais comuns.
 
 ## O app mostra "Desconectado"
 
-A faixa vermelha abaixo do cabeçalho e o ponto vermelho na engrenagem indicam que o app não alcança o servidor. Enquanto isso, ele tenta reconectar sozinho, com intervalos de 1 a 10 segundos.
+A faixa vermelha abaixo do cabeçalho e o ponto vermelho na engrenagem indicam que o app não alcança o servidor. Enquanto isso, ele tenta reconectar sozinho, com intervalos de 1 a 10 segundos. Se isso acontecer logo ao abrir a página, o painel de configurações abre sozinho, com um quadro vermelho listando o que verificar (exceto no modo stream e nas páginas de uma seção).
 
 Verifique, nesta ordem:
 
