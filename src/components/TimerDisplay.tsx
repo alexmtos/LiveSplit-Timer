@@ -7,6 +7,7 @@ import { deltaTextClass } from '@/lib/colors';
 import { currentDelta } from '@/lib/run';
 import { formatDelta, formatTimeParts } from '@/lib/time';
 import { cn } from '@/lib/utils';
+import { SettingsButton } from './SettingsButton';
 
 /** `fill`: the timer is alone on the page (e.g. `/timer`), so let it grow with the window. */
 export function TimerDisplay({ fill = false }: { fill?: boolean }) {
@@ -45,7 +46,7 @@ export function TimerDisplay({ fill = false }: { fill?: boolean }) {
 
       <div
         className={cn(
-          'font-mono text-[3.5rem] font-extrabold leading-[0.9] tracking-[-1px] tabular-nums transition-colors',
+          'ml-auto font-mono text-[3.5rem] font-extrabold leading-[0.9] tracking-[-1px] tabular-nums transition-colors',
           fill && 'text-[length:min(22cqw,75cqh)]',
           timerColor,
           !isConnected && 'opacity-30',
@@ -55,6 +56,8 @@ export function TimerDisplay({ fill = false }: { fill?: boolean }) {
         {time.main}
         <span className="text-[0.5em] opacity-70">.{time.fraction}</span>
       </div>
+
+      <SettingsButton at="timer" />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { isBestSegment, parseSegmentName, pickTime, splitDelta } from './run';
+import { comparisonTime, isBestSegment, isRunActive, parseSegmentName, pickTime, splitDelta } from './run';
 import type { LiveSplitState, TimingMethod } from '@/types';
 
 /** One point of the comparison graph: a finished (or skipped) split, or the live position. */
@@ -36,6 +36,35 @@ export function buildGraphPoints(state: LiveSplitState, comparison: string, meth
     });
   }
   return interpolate(points);
+}
+
+/**
+ * Where the run stands on the current split right now: the time so far minus
+ * the comparison's time for this split. Unlike LiveSplit's live delta (shown
+ * only once you're behind), it exists from the start, so the graph reacts at once.
+ */
+export function rawLiveDelta(
+  state: LiveSplitState,
+  currentTime: number | null,
+  comparison: string,
+  method: TimingMethod,
+): number | null {
+  if (!isRunActive(state.timerState) || currentTime === null) return null;
+  const comp = comparisonTime(state.run.segments[state.currentSplitIndex], comparison, method);
+  return comp === null ? null : currentTime - comp;
+}
+
+/**
+ * Half the height of the graph with the live point. The live point only widens
+ * the scale when LiveSplit itself shows the live delta (`shown`) or there is
+ * nothing else to plot; otherwise early in a split, far ahead of the comparison,
+ * it would squash every finished split onto the zero line (it is drawn at the edge instead).
+ */
+export function liveRange(points: GraphPoint[], live: number | null, shown: boolean): number {
+  const base = graphRange(points);
+  if (live === null) return base;
+  const hasDeltas = points.some((point) => point.delta !== null);
+  return shown || !hasDeltas ? Math.max(base, Math.abs(live) * 1.25) : base;
 }
 
 /** Adds the live point (current split) when there is a live delta. */

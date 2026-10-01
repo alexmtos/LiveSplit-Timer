@@ -47,6 +47,7 @@ As opções ficam desativadas quando o componente está em modo somente leitura.
 |-------|--------|-----------|
 | Tema | Padrão | Um dos 11 temas: `default`, `dark`, `purple`, `orange`, `retro`, `blue`, `green`, `pink`, `matrix`, `sunset`, `midnight`. |
 | Modo Transparente | Desligado | Remove o fundo e a borda da página para uso no OBS. |
+| Transparência do fundo | 100% | Aparece com o modo transparente ligado. Em 100% o fundo some; em valores menores, o fundo do tema aparece por trás do overlay com essa transparência. |
 
 Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nome para ver todos os temas. Dois segundos depois da troca, o painel sai da frente para mostrar o tema no overlay.
 
@@ -63,6 +64,8 @@ Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nom
 | Splits sempre expandidos | Desligado | Mostra os subsplits de todas as seções. Desligado, só a seção atual e as que você abrir ficam expandidas. |
 | Atalhos de teclado | Ligado | Ativa os [atalhos de teclado](#atalhos-de-teclado) da página. |
 | Modo stream | Desligado | Esconde a engrenagem até o cursor passar sobre ela. |
+
+A engrenagem, que abre o painel, fica à direita do timer, centralizada na altura dele. Sem o timer na página, ela fica no canto superior direito.
 
 As seções aparecem nesta ordem: cabeçalho, timer, previsões, gráfico, controles e tabela de splits.
 
@@ -92,6 +95,7 @@ http://localhost:3000/?host=192.168.0.10&theme=matrix&transparent=1&stream=1&hid
 | `theme` | ID do tema | Tema da página. |
 | `lang` | `pt-BR`, `en-US`, `fr`, `de`, `es` (ou só o prefixo, como `en`) | Idioma. |
 | `transparent` | booleano | Modo transparente. |
+| `transparency` | `0`–`100` | Transparência do fundo no modo transparente. |
 | `stream` | booleano | Modo stream. |
 | `expanded` | booleano | Splits sempre expandidos. |
 | `hotkeys` | booleano | Liga ou desliga os atalhos de teclado. |
@@ -127,7 +131,7 @@ As páginas de uma seção ignoram as opções de exibição e sempre mostram a 
 | Clicar no nome de uma seção | Abre ou fecha a seção. Seções abertas à mão fecham de novo quando a run passa para outro split. |
 | Arrastar a borda de baixo do gráfico | Ajusta a altura do gráfico entre 80 e 400 pixels. A altura fica salva no navegador. |
 
-O gráfico marca o fim de cada seção com uma linha tracejada e o nome da seção. Embaixo, mostra o delta do primeiro e do último ponto, do melhor e do pior, e do fim de cada seção. Splits pulados aparecem com um X vermelho. Com a run em andamento, o ponto atual acompanha o delta ao vivo quando ele aparece no LiveSplit.
+O gráfico marca o fim de cada seção com uma linha tracejada e o nome da seção. Embaixo, mostra o delta do primeiro e do último ponto, do melhor e do pior, e do fim de cada seção. Splits pulados aparecem com um X vermelho. Com a run em andamento, o ponto atual mostra a todo momento a diferença entre o tempo e a comparação do split atual, desde o início da run. Enquanto você está à frente e o LiveSplit ainda não mostra o delta ao vivo, esse ponto não muda a escala do gráfico: se estiver fora dela, fica na borda.
 
 Runs com um único split não mostram o gráfico nem a tabela.
 

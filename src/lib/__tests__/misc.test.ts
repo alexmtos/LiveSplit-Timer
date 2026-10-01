@@ -66,8 +66,9 @@ describe('settings', () => {
   });
 
   it('keeps valid stored values', () => {
-    const settings = sanitizeSettings({ language: 'de', theme: 'matrix', showGraph: false, wsUrl: 'ws://pc:15721', chromaKey: { enabled: true } });
-    expect(settings).toMatchObject({ language: 'de', theme: 'matrix', showGraph: false, wsUrl: 'ws://pc:15721', chromaKey: { enabled: true } });
+    const settings = sanitizeSettings({ language: 'de', theme: 'matrix', showGraph: false, wsUrl: 'ws://pc:15721', chromaKey: { enabled: true }, transparency: 35 });
+    expect(settings).toMatchObject({ language: 'de', theme: 'matrix', showGraph: false, wsUrl: 'ws://pc:15721', chromaKey: { enabled: true }, transparency: 35 });
+    expect(sanitizeSettings({ transparency: -5 }).transparency).toBe(100);
   });
 });
 
@@ -106,7 +107,8 @@ describe('URL overrides', () => {
   });
 
   it('ignores unknown or invalid values', () => {
-    expect(parseUrlOverrides('?theme=nope&lang=xx&transparent=maybe&hide=foo&port=abc', saved)).toEqual({});
+    expect(parseUrlOverrides('?theme=nope&lang=xx&transparent=maybe&hide=foo&port=abc&transparency=150', saved)).toEqual({});
+    expect(parseUrlOverrides('?transparency=40', saved)).toEqual({ transparency: 40 });
   });
 
   it('round-trips through buildOverlayUrl', () => {
@@ -118,9 +120,10 @@ describe('URL overrides', () => {
       streamMode: true,
       showGraph: false,
       chromaKey: { enabled: true },
+      transparency: 60,
     };
     const url = buildOverlayUrl('http://localhost:3000', '/', settings);
-    expect(url).toBe('http://localhost:3000/?host=10.0.0.2&port=15722&theme=retro&lang=de&transparent=1&stream=1&hide=graph');
+    expect(url).toBe('http://localhost:3000/?host=10.0.0.2&port=15722&theme=retro&lang=de&transparent=1&transparency=60&stream=1&hide=graph');
     const search = new URL(url).search;
     expect({ ...DEFAULT_SETTINGS, ...parseUrlOverrides(search, DEFAULT_SETTINGS.wsUrl) }).toEqual(settings);
   });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildGraphPoints, graphRange, labelledPoints, withLivePoint } from '@/lib/graph';
+import { buildGraphPoints, graphRange, labelledPoints, liveRange, rawLiveDelta, withLivePoint } from '@/lib/graph';
 import { segment, state } from './fixtures';
 
 const run = [
@@ -48,5 +48,21 @@ describe('graph scale and labels', () => {
     const labels = labelledPoints(points);
     expect(labels.map((l) => l.index).sort()).toEqual([0, 1, 2]);
     expect(labels[labels.length - 1]).toEqual({ index: 2, isActive: true });
+  });
+});
+
+describe('live point', () => {
+  it('exists as soon as the run starts, even when far ahead', () => {
+    const started = state(run, { index: 0 });
+    expect(rawLiveDelta(started, 1_000, 'Personal Best', 'RealTime')).toBe(-9_000);
+    expect(rawLiveDelta(state(run, { phase: 'NotRunning', index: -1 }), 0, 'Personal Best', 'RealTime')).toBeNull();
+    expect(rawLiveDelta(state(run, { phase: 'Ended', index: 4 }), 41_000, 'Personal Best', 'RealTime')).toBeNull();
+  });
+
+  it('only widens the scale when LiveSplit shows it or nothing else is plotted', () => {
+    const points = buildGraphPoints(state(run, { index: 3 }), 'Personal Best', 'RealTime');
+    expect(liveRange(points, -20_000, false)).toBe(3_750);
+    expect(liveRange(points, 8_000, true)).toBe(10_000);
+    expect(liveRange([], -9_000, false)).toBe(11_250);
   });
 });

@@ -5,8 +5,11 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { ComparisonGraph } from './ComparisonGraph';
 import { Header } from './Header';
 import { Predictions } from './Predictions';
+import { SettingsButtonProvider } from './SettingsButton';
 import { SplitsTable } from './SplitsTable';
 import { TimerDisplay } from './TimerDisplay';
+
+const NO_SETTINGS_BUTTON = { placement: 'none' as const, open: () => {} };
 
 /** Width of the exported image, in CSS pixels. */
 export const EXPORT_WIDTH = 500;
@@ -76,13 +79,15 @@ export function ExportViewProvider({ children }: { children: React.ReactNode }) 
       {children}
       {active && (
         <div className="pointer-events-none fixed left-[-10000px] top-0" aria-hidden data-export-ignore>
-          <div ref={ref} className="flex flex-col bg-[var(--bg-main)] font-sans text-white" style={{ width: EXPORT_WIDTH }}>
-            {settings.showHeader && <Header />}
-            {settings.showTimer && <TimerDisplay />}
-            {settings.showPredictions && <Predictions />}
-            {settings.showGraph && <ComparisonGraph fixedHeight={EXPORT_GRAPH_HEIGHT} />}
-            {settings.showTable && <SplitsTable printable />}
-          </div>
+          <SettingsButtonProvider value={NO_SETTINGS_BUTTON}>
+            <div ref={ref} className="flex flex-col bg-[var(--bg-main)] font-sans text-white" style={{ width: EXPORT_WIDTH }}>
+              {settings.showHeader && <Header />}
+              {settings.showTimer && <TimerDisplay />}
+              {settings.showPredictions && <Predictions />}
+              {settings.showGraph && <ComparisonGraph fixedHeight={EXPORT_GRAPH_HEIGHT} />}
+              {settings.showTable && <SplitsTable printable />}
+            </div>
+          </SettingsButtonProvider>
         </div>
       )}
     </ExportViewContext.Provider>

@@ -20,6 +20,8 @@ export interface Settings {
   chromaKey: {
     enabled: boolean;
   };
+  /** In transparent mode, how transparent the background is: 100 = fully transparent, 0 = the theme's background. */
+  transparency: number;
 }
 
 /** Sections of the overlay; each one can be hidden or served alone on its own route. */

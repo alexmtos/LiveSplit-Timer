@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ComparisonGraph } from './ComparisonGraph';
 import { Controls } from './Controls';
 import { ExportViewProvider } from './ExportView';
-import { GearIcon } from './icons';
 import { Header } from './Header';
 import { Predictions } from './Predictions';
+import { SettingsButton, SettingsButtonProvider } from './SettingsButton';
 import { SettingsModal } from './SettingsModal';
 import { SplitsTable } from './SplitsTable';
 import { CommandErrorToast, ConnectionNotice, ResetConfirmToast } from './StatusNotices';
@@ -15,37 +15,9 @@ import { TimerDisplay } from './TimerDisplay';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { SelectionProvider } from '@/contexts/SelectionContext';
 import { useSettings } from '@/contexts/SettingsContext';
-import { useI18n } from '@/hooks/useI18n';
 import { useLiveSplitHotkeys } from '@/hooks/useLiveSplitHotkeys';
 import { cn } from '@/lib/utils';
 import { SECTION_SETTING, type OverlaySection } from '@/types';
-
-function SettingsButton({ onClick }: { onClick: () => void }) {
-  const { settings } = useSettings();
-  const { isConnected } = useLiveSplit();
-  const { t } = useI18n();
-  return (
-    <button
-      type="button"
-      // Keep focus off the button so a later Space press still splits.
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={onClick}
-      aria-label={t('btn_settings')}
-      title={t('btn_settings')}
-      data-export-ignore
-      className={cn(
-        'absolute right-4 top-3 z-30 flex h-8 w-8 items-center justify-center rounded-md border border-white/10 bg-white/5 text-white transition-all hover:border-accent hover:bg-accent/10 hover:text-accent',
-        // Stream mode: invisible on the broadcast, revealed on hover or keyboard focus.
-        settings.streamMode && 'opacity-0 hover:opacity-100 focus-visible:opacity-100',
-      )}
-    >
-      <GearIcon size={20} />
-      {!isConnected && !settings.streamMode && (
-        <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border border-black bg-red-500" aria-hidden />
-      )}
-    </button>
-  );
-}
 
 const SECTIONS: Record<OverlaySection, (fill: boolean) => React.ReactNode> = {
   header: () => <Header />,
@@ -98,37 +70,45 @@ export function Overlay({ only }: { only?: OverlaySection }) {
   useLiveSplitHotkeys(settings.hotkeysEnabled && !isSettingsOpen);
 
   const sections = only ? [only] : ORDER.filter((section) => settings[SECTION_SETTING[section]]);
+  // The settings button sits in the timer when there is one, otherwise in the window's corner.
+  const timerShown = only ? only === 'timer' : settings.showTimer;
+  const settingsButton = useMemo(
+    () => ({ placement: timerShown ? ('timer' as const) : ('window' as const), open: openSettings }),
+    [timerShown, openSettings],
+  );
 
   return (
     <SelectionProvider>
-      <ExportViewProvider>
-        <main className="relative flex h-screen w-full flex-col overflow-hidden font-sans text-white">
-          <ThemeManager />
-
-          <div
-            id="ls-window"
-            className={cn(
-              'relative flex h-full w-full flex-col overflow-hidden rounded-lg border shadow-2xl',
-              settings.chromaKey.enabled ? 'border-transparent bg-transparent' : 'border-white/10 bg-[var(--bg-main)]',
-              only && only !== 'splits' && 'justify-center',
-            )}
-          >
-            <SettingsButton onClick={openSettings} />
-            {sections.map((section, index) => (
-              <React.Fragment key={section}>
-                {SECTIONS[section](!!only)}
-                {/* Connection problems show right under the first section. */}
-                {index === 0 && <ConnectionNotice />}
-              </React.Fragment>
-            ))}
-            {sections.length === 0 && <ConnectionNotice />}
-          </div>
-
-          <ResetConfirmToast />
-          <CommandErrorToast />
-          <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
-        </main>
-      </ExportViewProvider>
+      <SettingsButtonProvider value={settingsButton}>
+        <ExportViewProvider>
+          <main className="relative flex h-screen w-full flex-col overflow-hidden font-sans text-white">
+            <ThemeManager />
+  
+            <div
+              id="ls-window"
+              className={cn(
+                'relative flex h-full w-full flex-col overflow-hidden rounded-lg border shadow-2xl',
+                settings.chromaKey.enabled ? 'border-transparent bg-[var(--window-bg)]' : 'border-white/10 bg-[var(--window-bg)]',
+                only && only !== 'splits' && 'justify-center',
+              )}
+            >
+              <SettingsButton at="window" />
+              {sections.map((section, index) => (
+                <React.Fragment key={section}>
+                  {SECTIONS[section](!!only)}
+                  {/* Connection problems show right under the first section. */}
+                  {index === 0 && <ConnectionNotice />}
+                </React.Fragment>
+              ))}
+              {sections.length === 0 && <ConnectionNotice />}
+            </div>
+  
+            <ResetConfirmToast />
+            <CommandErrorToast />
+            <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />
+          </main>
+        </ExportViewProvider>
+      </SettingsButtonProvider>
     </SelectionProvider>
   );
 }

@@ -2,13 +2,14 @@
 
 import { useEffect } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
-import { accentForeground, getTheme } from '@/lib/themes';
+import { accentForeground, getTheme, withAlpha } from '@/lib/themes';
 
 /** Applies the theme colours and the transparent (OBS) background to the document. */
 export function ThemeManager() {
   const { settings } = useSettings();
   const theme = getTheme(settings.theme);
   const transparent = settings.chromaKey.enabled;
+  const transparency = settings.transparency;
 
   useEffect(() => {
     const root = document.documentElement;
@@ -20,8 +21,10 @@ export function ThemeManager() {
     // The page background lives on <html>/<body>; it must be cleared too or
     // OBS still captures an opaque rectangle behind the overlay.
     root.style.setProperty('--page-bg', transparent ? 'transparent' : theme.bg);
+    // Background of the overlay window: in transparent mode, the theme's background at the chosen transparency.
+    root.style.setProperty('--window-bg', transparent ? withAlpha(theme.bg, 1 - transparency / 100) : theme.bg);
     root.dataset.transparent = transparent ? 'true' : 'false';
-  }, [theme, transparent]);
+  }, [theme, transparent, transparency]);
 
   useEffect(() => {
     document.documentElement.lang = settings.language;

@@ -21,7 +21,14 @@ export const DEFAULT_SETTINGS: Settings = {
   chromaKey: {
     enabled: false,
   },
+  transparency: 100,
 };
+
+/** A whole percentage from 0 to 100, or null. */
+function toPercent(value: unknown): number | null {
+  const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof number === 'number' && Number.isFinite(number) && number >= 0 && number <= 100 ? Math.round(number) : null;
+}
 
 type BooleanKey = {
   [K in keyof Settings]: Settings[K] extends boolean ? K : never;
@@ -83,6 +90,7 @@ export function sanitizeSettings(raw: unknown, fallbackLanguage: Language = DEFA
     chromaKey: {
       enabled: typeof chroma?.enabled === 'boolean' ? chroma.enabled : DEFAULT_SETTINGS.chromaKey.enabled,
     },
+    transparency: toPercent(input.transparency) ?? DEFAULT_SETTINGS.transparency,
   };
   for (const key of BOOLEAN_KEYS) {
     if (typeof input[key] === 'boolean') settings[key] = input[key] as boolean;
@@ -111,7 +119,7 @@ function parseSections(value: string | null): OverlaySection[] {
  * Reads settings from the page URL. They apply to this page only and are never
  * saved, so each OBS browser source can have its own configuration:
  *
- *   ?host=192.168.0.10&port=15721&theme=matrix&lang=en-US&transparent=1
+ *   ?host=192.168.0.10&port=15721&theme=matrix&lang=en-US&transparent=1&transparency=60
  *   &stream=1&hide=controls,graph&expanded=1&hotkeys=0
  */
 export function parseUrlOverrides(search: string, currentWsUrl: string): Partial<Settings> {
@@ -143,6 +151,9 @@ export function parseUrlOverrides(search: string, currentWsUrl: string): Partial
 
   const transparent = parseBoolean(params.get('transparent'));
   if (transparent !== undefined) overrides.chromaKey = { enabled: transparent };
+
+  const transparency = toPercent(params.get('transparency'));
+  if (transparency !== null) overrides.transparency = transparency;
 
   const flags: [string, BooleanKey][] = [
     ['stream', 'streamMode'],
@@ -181,7 +192,10 @@ export function buildOverlayUrl(
   if (settings.token) params.set('token', settings.token);
   if (settings.theme !== DEFAULT_SETTINGS.theme) params.set('theme', settings.theme);
   params.set('lang', settings.language);
-  if (settings.chromaKey.enabled) params.set('transparent', '1');
+  if (settings.chromaKey.enabled) {
+    params.set('transparent', '1');
+    if (settings.transparency !== DEFAULT_SETTINGS.transparency) params.set('transparency', String(settings.transparency));
+  }
   if (settings.streamMode) params.set('stream', '1');
   if (settings.alwaysExpandedSplits) params.set('expanded', '1');
   if (!settings.hotkeysEnabled) params.set('hotkeys', '0');
