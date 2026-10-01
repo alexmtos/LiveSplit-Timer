@@ -23,11 +23,13 @@ A URL copiada já inclui o modo transparente, o modo stream, as seções escondi
 
 ## Deixar o fundo transparente
 
-Ative **Modo Transparente** nas configurações ou adicione `transparent=1` à URL. O OBS passa a mostrar a cena por trás do overlay; os painéis mantêm um fundo escuro semitransparente para o texto continuar legível.
+Ative **Modo Transparente** nas configurações ou adicione `transparent=1` à URL. O OBS passa a mostrar a cena por trás do overlay. O texto tem uma sombra escura para continuar legível, e o gráfico e a tabela de splits mantêm um fundo escuro semitransparente.
 
 ## Esconder a engrenagem na live
 
 Ative **Modo stream** nas configurações ou adicione `stream=1` à URL. A engrenagem fica invisível e só aparece quando o cursor passa sobre ela. No OBS, isso acontece apenas na janela **Interagir**.
+
+O modo stream também impede que o painel de configurações abra sozinho na live quando o LiveSplit está fechado.
 
 ## Usar uma fonte para cada seção
 

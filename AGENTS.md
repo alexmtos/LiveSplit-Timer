@@ -21,15 +21,16 @@ Web overlay for LiveSplit (Next.js 16 App Router, React 19, TypeScript, Tailwind
 
 ## Code map
 
-- `src/lib/`: pure logic, covered by Vitest in `src/lib/__tests__/`. `run.ts` (LiveSplit's delta, prediction, colour and subsplit rules), `state.ts` (server message validation), `speedrun.ts`, `settings.ts` (defaults, URL parameters), `time.ts`.
-- `src/contexts/`: `SettingsContext` (saved settings plus non-persisted URL overrides), `LiveSplitContext` (WebSocket lifecycle, state, world record), `RunControlsContext` (button and hotkey rules).
-- `src/components/Overlay.tsx`: renders `/` and the single-section pages from `src/app/[view]/page.tsx`.
+- `src/lib/`: pure logic, covered by Vitest in `src/lib/__tests__/`. `run.ts` (LiveSplit's delta, prediction, colour and subsplit rules), `state.ts` (server message validation), `graph.ts` (comparison graph points), `speedrun.ts`, `settings.ts` (defaults, URL parameters), `time.ts`.
+- `src/contexts/`: `SettingsContext` (saved settings plus non-persisted URL overrides), `LiveSplitContext` (WebSocket lifecycle, state, world record), `RunControlsContext` (button and hotkey rules), `SelectionContext` (split selected on the graph or the table).
+- `src/components/Overlay.tsx`: renders `/` and the single-section pages from `src/app/[view]/page.tsx`. `ExportView.tsx` renders the off-screen copy captured by the image export.
+- The look follows the pre-Next.js overlay (`git show e327775:styles.css`): Segoe UI / Consolas, `ahead` `#40ff40` and `behind` `#ff4040` colours, text shadow for OBS. Keep it when changing components.
 
 ## Rules
 
 - The server is the **LiveSplit.WebSocketServer** component (alexmtos/LiveSplit.WebSocketServer, spec in its `docs/PROTOCOL.md`), not LiveSplit's built-in server. The app connects with `?protocol=2` (plus `&token=`) and must keep working with component 1.x, which ignores the query and speaks protocol 1. Protocol 2 events carry no icons; they are fetched with `state { includeIcons: true }` and merged by `withCachedIcons`. Parse every message through `parseServerMessage` in `src/lib/state.ts`.
 - Send commands with `sendCommand(action, args)` from `LiveSplitContext`; it uses JSON with ids in protocol 2 and plain text in protocol 1. Features that need protocol 2 (`setcomparison`, `settimingmethod`, errors, read-only info) must check `server.protocolVersion`.
-- `npm run mock:server` mirrors the component (`--legacy` for 1.x, `--token`, `--read-only`, `--broken` for a greeting that fails); extend it when the app starts using a new action.
+- `npm run mock:server` mirrors the component (`--legacy` for 1.x, `--token`, `--read-only`, `--broken` for a greeting that fails, `--segments <n>` for long runs); extend it when the app starts using a new action.
 - Times are integer milliseconds per timing method (`{ realTime, gameTime }`). Read them through `pickTime`/`comparisonTime` in `src/lib/run.ts` with the context's `timingMethod` and `comparison`. Never hard-code `realTime` or `"Personal Best"`.
 - When changing run math, match LiveSplit's C# (`LiveSplitStateHelper`, `DeltaComponent`, `RunPrediction`) and add a test.
 - Every user-facing string goes in `src/lib/translations.ts` for all five languages. `typecheck` fails when a key is missing.

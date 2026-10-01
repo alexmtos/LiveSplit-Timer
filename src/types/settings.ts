@@ -23,7 +23,7 @@ export interface Settings {
 }
 
 /** Sections of the overlay; each one can be hidden or served alone on its own route. */
-export const OVERLAY_SECTIONS = ['header', 'timer', 'predictions', 'controls', 'graph', 'splits'] as const;
+export const OVERLAY_SECTIONS = ['header', 'timer', 'predictions', 'graph', 'controls', 'splits'] as const;
 export type OverlaySection = (typeof OVERLAY_SECTIONS)[number];
 
 export const SECTION_SETTING: Record<OverlaySection, keyof Settings> = {

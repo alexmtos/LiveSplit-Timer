@@ -6,13 +6,13 @@ O app segue o que está configurado no LiveSplit: método de tempo (Real Time ou
 
 ## O que você pode fazer
 
-- Exibir timer, delta ao vivo, splits com cores de gold / ganhando / perdendo tempo e gráfico da run.
+- Exibir timer, delta ao vivo, splits com cores de gold / ganhando / perdendo tempo e gráfico da run, com seleção de splits e altura ajustável.
 - Ver o melhor tempo ainda possível e a previsão do tempo final, atualizados durante a run.
 - Mostrar o recorde mundial do speedrun.com para a categoria e subcategoria da run.
 - Colocar o overlay inteiro ou cada seção separada no OBS, com fundo transparente.
 - Controlar o timer pelo teclado ou por uma página de controle remoto com botões grandes.
 - Trocar a comparação e o método de tempo do LiveSplit pelo painel de configurações.
-- Exportar a run como imagem PNG ou planilha CSV.
+- Exportar a run inteira como imagem PNG ou planilha CSV.
 
 ## Início rápido
 

@@ -26,23 +26,23 @@ export function Predictions() {
     predicted === null || pb === null || state?.timerState === 'NotRunning'
       ? 'text-white'
       : predicted <= pb
-        ? 'text-green-500'
-        : 'text-red-500';
+        ? 'text-ahead'
+        : 'text-behind';
 
   return (
-    <div className="shrink-0 border-b border-white/10 bg-black/20 p-3 px-5">
+    <div className="shrink-0 border-b border-white/10 px-5 py-3">
       <div className="grid grid-cols-2 gap-5">
         <div className="flex flex-col items-center text-center">
-          <span className="text-[10px] font-medium uppercase tracking-widest text-[var(--text-dim)]">
+          <span className="mb-1 text-[0.8rem] font-medium uppercase tracking-[0.5px] text-[var(--text-dim)]">
             {t('prediction_best_possible')}
           </span>
-          <span className="font-mono text-2xl font-bold tabular-nums text-amber-300">{formatTime(best)}</span>
+          <span className="font-mono text-[1.8rem] font-bold leading-tight tabular-nums text-ahead">{formatTime(best)}</span>
         </div>
         <div className="flex flex-col items-center text-center">
-          <span className="text-[10px] font-medium uppercase tracking-widest text-[var(--text-dim)]">
+          <span className="mb-1 text-[0.8rem] font-medium uppercase tracking-[0.5px] text-[var(--text-dim)]">
             {t('prediction_predicted')}
           </span>
-          <span className={cn('font-mono text-2xl font-bold tabular-nums', predictedClass)}>{formatTime(predicted)}</span>
+          <span className={cn('font-mono text-[1.8rem] font-bold leading-tight tabular-nums', predictedClass)}>{formatTime(predicted)}</span>
         </div>
       </div>
     </div>
