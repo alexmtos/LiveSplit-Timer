@@ -16,7 +16,7 @@ interface Subscription {
 
 export const REFRESH_RATES = [10, 20, 30, 60] as const;
 export type RefreshRate = (typeof REFRESH_RATES)[number];
-export const DEFAULT_REFRESH_RATE: RefreshRate = 20;
+export const DEFAULT_REFRESH_RATE: RefreshRate = 60;
 
 /** The big timer: every tick. */
 export const TIMER_INTERVAL_MS = 0;

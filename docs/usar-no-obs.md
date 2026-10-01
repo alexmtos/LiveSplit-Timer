@@ -29,7 +29,7 @@ Para manter um pouco do fundo do tema, ajuste **Transparência do fundo**, que a
 
 ## Reduzir o uso de CPU
 
-Durante a run, o overlay redesenha o timer, os deltas e o gráfico 20 vezes por segundo. Se o OBS estiver pesado, escolha 10 em **Atualizações por segundo**, na seção **Exibição**, ou adicione `fps=10` à URL da fonte. Para um timer mais fluido, use 30 ou 60, que consomem mais CPU. Esconder seções que você não usa também reduz o consumo.
+Durante a run, o overlay redesenha o timer, os deltas e o gráfico 60 vezes por segundo. Se o OBS estiver pesado, escolha 30, 20 ou 10 em **Atualizações por segundo**, na seção **Exibição**, ou adicione `fps=20` à URL da fonte. Com menos atualizações, os centésimos andam aos saltos, mas o tempo continua exato. Esconder seções que você não usa também reduz o consumo.
 
 Confira também se a aceleração de hardware das fontes de navegador está ativada: em **Configurações > Avançado > Fontes**, marque **Ativar aceleração de hardware da fonte do navegador** e reinicie o OBS. Sem ela, o OBS desenha a página na CPU, e cada atualização custa bem mais.
 

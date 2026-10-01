@@ -69,8 +69,8 @@ describe('settings', () => {
     const settings = sanitizeSettings({ language: 'de', theme: 'matrix', showGraph: false, wsUrl: 'ws://pc:15721', chromaKey: { enabled: true }, transparency: 35 });
     expect(settings).toMatchObject({ language: 'de', theme: 'matrix', showGraph: false, wsUrl: 'ws://pc:15721', chromaKey: { enabled: true }, transparency: 35 });
     expect(sanitizeSettings({ transparency: -5 }).transparency).toBe(100);
-    expect(sanitizeSettings({ refreshRate: 60 }).refreshRate).toBe(60);
-    expect(sanitizeSettings({ refreshRate: 1000 }).refreshRate).toBe(20);
+    expect(sanitizeSettings({ refreshRate: 30 }).refreshRate).toBe(30);
+    expect(sanitizeSettings({ refreshRate: 1000 }).refreshRate).toBe(60);
   });
 });
 
