@@ -3,24 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { displayTime, extrapolateTime } from '@/lib/run';
+import { TIMER_INTERVAL_MS, subscribeTicker } from '@/lib/ticker';
 
-/** `performance.now()`, refreshed every animation frame (or every `intervalMs`) while `active`. */
-export function useNow(active: boolean, intervalMs = 0): number {
+/** `performance.now()`, refreshed by the shared clock (every tick, or about every `intervalMs`) while `active`. */
+export function useNow(active: boolean, intervalMs = TIMER_INTERVAL_MS): number {
   const [now, setNow] = useState(() => performance.now());
 
   useEffect(() => {
     if (!active) return;
-    let frame = 0;
-    let last = 0;
-    const tick = (time: number) => {
-      if (time - last >= intervalMs) {
-        last = time;
-        setNow(time);
-      }
-      frame = requestAnimationFrame(tick);
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
+    return subscribeTicker(intervalMs, setNow);
   }, [active, intervalMs]);
 
   return now;
@@ -31,7 +22,7 @@ export function useNow(active: boolean, intervalMs = 0): number {
  * the time in the active timing method (null when LiveSplit has no game time
  * yet) and is what deltas and predictions must use.
  */
-export function useRunClock(intervalMs = 0) {
+export function useRunClock(intervalMs = TIMER_INTERVAL_MS) {
   const { state, anchor, timingMethod } = useLiveSplit();
   const now = useNow(state?.timerState === 'Running', intervalMs);
   // Before the start LiveSplit shows the run's start offset (e.g. -5.00 for a countdown).

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { accentForeground, getTheme, withAlpha } from '@/lib/themes';
+import { setRefreshRate } from '@/lib/ticker';
 
 /** Applies the theme colours and the transparent (OBS) background to the document. */
 export function ThemeManager() {
@@ -29,6 +30,10 @@ export function ThemeManager() {
   useEffect(() => {
     document.documentElement.lang = settings.language;
   }, [settings.language]);
+
+  useEffect(() => {
+    setRefreshRate(settings.refreshRate);
+  }, [settings.refreshRate]);
 
   return null;
 }

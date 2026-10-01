@@ -1,4 +1,5 @@
 import { LANGUAGES, OVERLAY_SECTIONS, SECTION_SETTING, type Language, type OverlaySection, type Settings } from '@/types';
+import { DEFAULT_REFRESH_RATE, REFRESH_RATES } from './ticker';
 import { DEFAULT_PORT, DEFAULT_WS_URL, buildWsUrl, parseWsUrl } from './connection';
 import { THEME_COLORS } from './themes';
 
@@ -22,7 +23,13 @@ export const DEFAULT_SETTINGS: Settings = {
     enabled: false,
   },
   transparency: 100,
+  refreshRate: DEFAULT_REFRESH_RATE,
 };
+
+function toRefreshRate(value: unknown): number | null {
+  const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return (REFRESH_RATES as readonly unknown[]).includes(number) ? (number as number) : null;
+}
 
 /** A whole percentage from 0 to 100, or null. */
 function toPercent(value: unknown): number | null {
@@ -91,6 +98,7 @@ export function sanitizeSettings(raw: unknown, fallbackLanguage: Language = DEFA
       enabled: typeof chroma?.enabled === 'boolean' ? chroma.enabled : DEFAULT_SETTINGS.chromaKey.enabled,
     },
     transparency: toPercent(input.transparency) ?? DEFAULT_SETTINGS.transparency,
+    refreshRate: toRefreshRate(input.refreshRate) ?? DEFAULT_SETTINGS.refreshRate,
   };
   for (const key of BOOLEAN_KEYS) {
     if (typeof input[key] === 'boolean') settings[key] = input[key] as boolean;
@@ -155,6 +163,9 @@ export function parseUrlOverrides(search: string, currentWsUrl: string): Partial
   const transparency = toPercent(params.get('transparency'));
   if (transparency !== null) overrides.transparency = transparency;
 
+  const refreshRate = toRefreshRate(params.get('fps'));
+  if (refreshRate !== null) overrides.refreshRate = refreshRate;
+
   const flags: [string, BooleanKey][] = [
     ['stream', 'streamMode'],
     ['expanded', 'alwaysExpandedSplits'],
@@ -196,6 +207,7 @@ export function buildOverlayUrl(
     params.set('transparent', '1');
     if (settings.transparency !== DEFAULT_SETTINGS.transparency) params.set('transparency', String(settings.transparency));
   }
+  if (settings.refreshRate !== DEFAULT_SETTINGS.refreshRate) params.set('fps', String(settings.refreshRate));
   if (settings.streamMode) params.set('stream', '1');
   if (settings.alwaysExpandedSplits) params.set('expanded', '1');
   if (!settings.hotkeysEnabled) params.set('hotkeys', '0');

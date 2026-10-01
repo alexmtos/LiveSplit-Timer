@@ -27,6 +27,10 @@ Ative **Modo Transparente** nas configurações ou adicione `transparent=1` à U
 
 Para manter um pouco do fundo do tema, ajuste **Transparência do fundo**, que aparece logo abaixo da opção, ou adicione `transparency=<0 a 100>` à URL. Em 100% o fundo some por completo. O texto tem uma sombra escura para continuar legível, e o gráfico e a tabela de splits mantêm um fundo escuro semitransparente.
 
+## Reduzir o uso de CPU
+
+Durante a run, o overlay redesenha o timer, os deltas e o gráfico 20 vezes por segundo. Se o OBS estiver pesado, escolha 10 em **Atualizações por segundo**, na seção **Exibição**, ou adicione `fps=10` à URL da fonte. Para um timer mais fluido, use 30 ou 60, que consomem mais CPU. Esconder seções que você não usa também reduz o consumo.
+
 ## Esconder a engrenagem na live
 
 Ative **Modo stream** nas configurações ou adicione `stream=1` à URL. A engrenagem fica invisível e só aparece quando o cursor passa sobre o timer (ou, sem o timer, sobre o canto dela). No OBS, isso acontece apenas na janela **Interagir**.

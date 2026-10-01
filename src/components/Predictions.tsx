@@ -4,6 +4,7 @@ import React from 'react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useI18n } from '@/hooks/useI18n';
 import { useRunClock } from '@/hooks/useRunClock';
+import { SLOW_INTERVAL_MS } from '@/lib/ticker';
 import { bestPossibleTime, currentPace, pickTime } from '@/lib/run';
 import { formatTime } from '@/lib/time';
 import { cn } from '@/lib/utils';
@@ -16,7 +17,7 @@ import { cn } from '@/lib/utils';
 export function Predictions() {
   const { t } = useI18n();
   const { state, comparison, timingMethod } = useLiveSplit();
-  const { currentTime } = useRunClock(100);
+  const { currentTime } = useRunClock(SLOW_INTERVAL_MS);
 
   const best = state ? bestPossibleTime(state, currentTime, timingMethod) : null;
   const predicted = state ? currentPace(state, currentTime, comparison, timingMethod) : null;

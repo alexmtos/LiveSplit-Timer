@@ -35,5 +35,6 @@ Web overlay for LiveSplit (Next.js 16 App Router, React 19, TypeScript, Tailwind
 - When changing run math, match LiveSplit's C# (`LiveSplitStateHelper`, `DeltaComponent`, `RunPrediction`) and add a test.
 - Every user-facing string goes in `src/lib/translations.ts` for all five languages. `typecheck` fails when a key is missing.
 - Tailwind v3 cannot apply opacity to `var()` colours. Use the `accent` colour (`bg-accent/15`), not `bg-[var(--theme-accent)]/15`.
+- Anything that changes while the timer runs subscribes to the shared clock in `src/lib/ticker.ts` (`subscribeTicker`, or `useRunClock`/`useNow`), which runs at the user's `refreshRate`. Never start a `requestAnimationFrame` loop or a separate `setInterval`: each one keeps the browser re-rendering and CPU use grows with every update per second. Write fast-changing text straight to the DOM, as `TimerDisplay` does, instead of re-rendering React each tick.
 - Control buttons call `preventDefault` on `mousedown` so a later Space press splits instead of re-clicking the focused button. Keep this for new buttons.
 - User documentation follows Anthropic docs style: sentence-case headings, second person, task-oriented steps, tables for reference, `> **Nota:**` callouts, no emoji. Update `docs/` when behaviour or options change.

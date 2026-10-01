@@ -6,6 +6,7 @@ import { useSplitSelection } from '@/contexts/SelectionContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useI18n } from '@/hooks/useI18n';
 import { useRunClock } from '@/hooks/useRunClock';
+import { SLOW_INTERVAL_MS } from '@/lib/ticker';
 import { STATUS_TEXT_CLASS, deltaTextClass } from '@/lib/colors';
 import {
   comparisonTime,
@@ -60,7 +61,7 @@ function buildRow(state: LiveSplitState, index: number, comparison: string, meth
 
 /** Live delta on the current split; isolated so only this cell re-renders with the clock. */
 function LiveDeltaCell({ state, comparison, method }: { state: LiveSplitState; comparison: string; method: TimingMethod }) {
-  const { currentTime } = useRunClock(100);
+  const { currentTime } = useRunClock(SLOW_INTERVAL_MS);
   const delta = liveDelta(state, currentTime, comparison, method);
   return <span className={deltaTextClass(delta)}>{formatDelta(delta)}</span>;
 }

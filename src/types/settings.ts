@@ -22,6 +22,8 @@ export interface Settings {
   };
   /** In transparent mode, how transparent the background is: 100 = fully transparent, 0 = the theme's background. */
   transparency: number;
+  /** Times per second the running timer, deltas and graph are redrawn (one of REFRESH_RATES in lib/ticker). */
+  refreshRate: number;
 }
 
 /** Sections of the overlay; each one can be hidden or served alone on its own route. */

@@ -63,6 +63,7 @@ Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nom
 | Mostrar tabela de splits | Ligado | Lista de splits, agrupada por seção. |
 | Splits sempre expandidos | Desligado | Mostra os subsplits de todas as seções. Desligado, só a seção atual e as que você abrir ficam expandidas. |
 | Atalhos de teclado | Ligado | Ativa os [atalhos de teclado](#atalhos-de-teclado) da página. |
+| Atualizações por segundo | 20 | Quantas vezes por segundo o timer, os deltas, as previsões e o gráfico são redesenhados durante a run: 10, 20, 30 ou 60. O consumo de CPU acompanha esse número; o tempo continua exato em qualquer opção. |
 | Modo stream | Desligado | Esconde a engrenagem até o cursor passar sobre o timer (ou, sem o timer, sobre o canto da engrenagem). Escondida, ela não ocupa espaço ao lado do timer. |
 
 A engrenagem, que abre o painel, fica à direita do timer, centralizada na altura dele. Sem o timer na página, ela fica no canto superior direito.
@@ -96,6 +97,7 @@ http://localhost:3000/?host=192.168.0.10&theme=matrix&transparent=1&stream=1&hid
 | `lang` | `pt-BR`, `en-US`, `fr`, `de`, `es` (ou só o prefixo, como `en`) | Idioma. |
 | `transparent` | booleano | Modo transparente. |
 | `transparency` | `0`–`100` | Transparência do fundo no modo transparente. |
+| `fps` | `10`, `20`, `30`, `60` | Atualizações por segundo. |
 | `stream` | booleano | Modo stream. |
 | `expanded` | booleano | Splits sempre expandidos. |
 | `hotkeys` | booleano | Liga ou desliga os atalhos de teclado. |

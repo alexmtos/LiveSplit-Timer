@@ -7,6 +7,7 @@ import { useI18n } from '@/hooks/useI18n';
 import { AHEAD_HEX, BEHIND_HEX, STATUS_HEX } from '@/lib/colors';
 import { buildGraphPoints, labelledPoints, liveRange, rawLiveDelta, withLivePoint, type GraphPoint } from '@/lib/graph';
 import { extrapolateTime, liveDelta } from '@/lib/run';
+import { SLOW_INTERVAL_MS, subscribeTicker } from '@/lib/ticker';
 import { formatDelta } from '@/lib/time';
 import { cn } from '@/lib/utils';
 
@@ -277,12 +278,11 @@ export function ComparisonGraph({ fill = false, fixedHeight }: { fill?: boolean;
 
   const points = useMemo(() => (state ? buildGraphPoints(state, comparison, timingMethod) : []), [state, comparison, timingMethod]);
 
-  // Drawn outside React: while the timer runs the live point moves every frame
-  // without re-rendering anything, and the canvas is only redrawn when it changed.
+  // Drawn outside React: while the timer runs the live point moves without
+  // re-rendering anything, and the canvas is only redrawn when it changed.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !state || size.width === 0 || size.height === 0) return;
-    let frame = 0;
     let drawn: string | undefined;
     const plotHeight = Math.max(1, size.height - PADDING_TOP - FOOTER - 5);
     const render = () => {
@@ -302,10 +302,10 @@ export function ComparisonGraph({ fill = false, fixedHeight }: { fill?: boolean;
         drawn = key;
         layoutRef.current = drawGraph(canvas, size.width, size.height, withLivePoint(points, state, live), selected, range);
       }
-      if (state.timerState === 'Running') frame = requestAnimationFrame(render);
     };
     render();
-    return () => cancelAnimationFrame(frame);
+    // While running, the live point moves; the shared ticker checks it a few times a second.
+    if (state.timerState === 'Running') return subscribeTicker(SLOW_INTERVAL_MS, render);
   }, [state, anchor, comparison, timingMethod, points, size, selected]);
 
   if (hidden) return null;

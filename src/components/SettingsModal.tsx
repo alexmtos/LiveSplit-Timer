@@ -11,6 +11,7 @@ import { buildOverlayUrl } from '@/lib/settings';
 import { LANGUAGE_OPTIONS, type TranslationKey } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 import { OVERLAY_SECTIONS, type ConnectionDiagnostic, type Settings } from '@/types';
+import { REFRESH_RATES } from '@/lib/ticker';
 import { ThemeSelector } from './ThemeSelector';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
@@ -529,6 +530,37 @@ function TransparencySlider({
   );
 }
 
+/** Times per second the running timer is redrawn: fewer use less CPU. */
+function RefreshRatePicker({ value, onChange }: { value: number; onChange: (rate: number) => void }) {
+  const { t } = useI18n();
+  const id = useId();
+  return (
+    <div className="rounded-lg bg-white/[0.03] p-3 transition-all hover:bg-white/5">
+      <h4 id={id} className="mb-1 text-sm font-semibold text-white">
+        {t('refresh_rate_title')}
+      </h4>
+      <p className="mb-3 text-xs text-[var(--text-dim)]">{t('refresh_rate_desc')}</p>
+      <div className="grid grid-cols-4 gap-1 rounded-md border border-white/10 bg-black/30 p-1" role="radiogroup" aria-labelledby={id}>
+        {REFRESH_RATES.map((rate) => (
+          <button
+            key={rate}
+            type="button"
+            role="radio"
+            aria-checked={value === rate}
+            onClick={() => onChange(rate)}
+            className={cn(
+              'rounded px-2 py-1.5 font-mono text-xs font-bold transition-colors',
+              value === rate ? 'bg-accent text-[color:var(--accent-fg)]' : 'text-white/70 hover:bg-white/10',
+            )}
+          >
+            {rate}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Shown while disconnected: what to check, as before. */
 function ConnectionProblem() {
   const { status, unauthorized } = useLiveSplit();
@@ -821,6 +853,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                   onChange={() => toggle(opt.key)}
                 />
               ))}
+              <RefreshRatePicker value={settings.refreshRate} onChange={(refreshRate) => updateSettings({ refreshRate })} />
             </div>
           </section>
 
