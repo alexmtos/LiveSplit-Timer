@@ -8,6 +8,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useI18n } from '@/hooks/useI18n';
 import { cn } from '@/lib/utils';
 import { PauseIcon, ResetIcon, SkipIcon, SplitIcon, StartIcon, UndoIcon } from './icons';
+import { SettingsButton, useSettingsButtonPlacement } from './SettingsButton';
 
 // Mouse clicks must not leave focus on a button: a later Space press would
 // click that button again instead of triggering the split hotkey.
@@ -22,6 +23,7 @@ export function Controls({ fill = false }: { fill?: boolean }) {
   const { state, server } = useLiveSplit();
   const controls = useRunControls();
   const { t } = useI18n();
+  const buttonHere = useSettingsButtonPlacement() === 'controls';
 
   const phase = state?.timerState ?? 'NotRunning';
   const ended = phase === 'Ended';
@@ -43,13 +45,16 @@ export function Controls({ fill = false }: { fill?: boolean }) {
     return (
       <div
         className={cn(
-          'flex shrink-0 items-center justify-center gap-2 border-b border-white/10 px-4 text-xs text-[var(--text-dim)]',
+          'flex shrink-0 items-center gap-2 border-b border-white/10 px-4 text-xs text-[var(--text-dim)]',
           fill ? 'flex-1 border-b-0 text-base' : 'h-[60px]',
         )}
         data-export-ignore
       >
-        <Lock size={fill ? 18 : 14} />
-        {t('controls_read_only')}
+        <div className="flex flex-1 items-center justify-center gap-2">
+          <Lock size={fill ? 18 : 14} />
+          {t('controls_read_only')}
+        </div>
+        <SettingsButton at="controls" layout="keep" />
       </div>
     );
   }
@@ -63,7 +68,9 @@ export function Controls({ fill = false }: { fill?: boolean }) {
       { label: controls.resetArmed ? t('reset_confirm_hint') : t('btn_reset'), enabled: canResetButton, onClick: controls.requestReset, Icon: ResetIcon, danger: controls.resetArmed },
     ];
     return (
-      <div className="grid flex-1 grid-rows-[2fr_1fr] gap-3 p-4 pt-14" data-export-ignore>
+      // The settings button gets a strip of its own above the buttons.
+      <div className={cn('relative grid flex-1 grid-rows-[2fr_1fr] gap-3 p-4', buttonHere && 'pt-14')} data-export-ignore>
+        <SettingsButton at="controls" layout="corner" className="right-4 top-3" />
         <button
           type="button"
           disabled={!controls.canPrimary}
@@ -174,6 +181,9 @@ export function Controls({ fill = false }: { fill?: boolean }) {
           <ResetIcon />
         </button>
       </div>
+
+      {/* Keeps its room even while hidden in stream mode, so the reset button never moves under the cursor. */}
+      <SettingsButton at="controls" layout="keep" />
     </div>
   );
 }

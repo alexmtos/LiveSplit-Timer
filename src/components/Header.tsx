@@ -6,14 +6,11 @@ import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useI18n } from '@/hooks/useI18n';
 import { PERSONAL_BEST, pickTime } from '@/lib/run';
 import { formatTime } from '@/lib/time';
-import { cn } from '@/lib/utils';
-import { useSettingsButtonPlacement } from './SettingsButton';
+import { SettingsButton } from './SettingsButton';
 
 export function Header() {
   const { state, worldRecord, timingMethod, comparison } = useLiveSplit();
   const { t } = useI18n();
-  // Room for the settings button when it sits in the window's corner, over the header.
-  const buttonInCorner = useSettingsButtonPlacement() === 'window';
 
   const run = state?.run;
   const lastSegment = run?.segments[run.segments.length - 1];
@@ -51,31 +48,35 @@ export function Header() {
   }
 
   return (
-    <header className="relative flex min-h-[70px] shrink-0 flex-col justify-center gap-1 border-b border-white/10 px-4 py-3">
-      <div className={cn('flex min-w-0 items-center gap-3', buttonInCorner && 'pr-10')}>
-        {run?.gameIcon && (
-          // Data URL sent by LiveSplit; next/image adds nothing here.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={run.gameIcon} alt="" className="h-6 w-6 shrink-0 rounded object-contain" />
-        )}
-        <h1 className="min-w-0 truncate text-base font-semibold text-accent" title={run?.gameName}>
-          {run?.gameName || '-'}
-        </h1>
-        <p className="min-w-0 max-w-[200px] shrink truncate font-mono text-[11px] tracking-[-0.2px] text-[var(--text-dim)]" title={run?.categoryName}>
-          {run?.categoryName || '-'}
-          {state && comparison !== PERSONAL_BEST && ` · ${t('comparison_vs')} ${comparison}`}
-          {state && timingMethod === 'GameTime' && (
-            <span className="ml-1.5 rounded border border-white/15 px-1 text-[9px] uppercase">IGT</span>
+    <header className="group/host relative flex min-h-[70px] shrink-0 items-center gap-3 border-b border-white/10 px-4 py-3">
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1">
+        <div className="flex min-w-0 items-center gap-3">
+          {run?.gameIcon && (
+            // Data URL sent by LiveSplit; next/image adds nothing here.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={run.gameIcon} alt="" className="h-6 w-6 shrink-0 rounded object-contain" />
           )}
-        </p>
+          <h1 className="min-w-0 truncate text-base font-semibold text-accent" title={run?.gameName}>
+            {run?.gameName || '-'}
+          </h1>
+          <p className="min-w-0 max-w-[200px] shrink truncate font-mono text-[11px] tracking-[-0.2px] text-[var(--text-dim)]" title={run?.categoryName}>
+            {run?.categoryName || '-'}
+            {state && comparison !== PERSONAL_BEST && ` · ${t('comparison_vs')} ${comparison}`}
+            {state && timingMethod === 'GameTime' && (
+              <span className="ml-1.5 rounded border border-white/15 px-1 text-[9px] uppercase">IGT</span>
+            )}
+          </p>
+        </div>
+
+        <div className="flex min-w-0 items-center gap-4 font-mono text-[11px] tracking-[-0.2px] text-[var(--text-dim)]">
+          <span className="shrink-0">
+            {t('pb_display')}: {formatTime(pb)}
+          </span>
+          <span className="min-w-0">{wrContent}</span>
+        </div>
       </div>
 
-      <div className="flex min-w-0 items-center gap-4 font-mono text-[11px] tracking-[-0.2px] text-[var(--text-dim)]">
-        <span className="shrink-0">
-          {t('pb_display')}: {formatTime(pb)}
-        </span>
-        <span className="min-w-0">{wrContent}</span>
-      </div>
+      <SettingsButton at="header" layout="slide" className="-ml-3 group-hover/host:ml-0 focus-visible:ml-0" />
     </header>
   );
 }

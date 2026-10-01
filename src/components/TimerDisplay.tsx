@@ -88,7 +88,7 @@ export function TimerDisplay({ fill = false }: { fill?: boolean }) {
   return (
     <div
       className={cn(
-        'group/timer flex min-h-[90px] shrink-0 items-center justify-between gap-4 border-b border-white/10 px-5 py-4',
+        'group/host flex min-h-[90px] shrink-0 items-center justify-between gap-4 border-b border-white/10 px-5 py-4',
         fill && 'flex-1 border-b-0 [container-type:size]',
       )}
     >
@@ -103,7 +103,7 @@ export function TimerDisplay({ fill = false }: { fill?: boolean }) {
         </span>
       </div>
 
-      <SettingsButton at="timer" />
+      <SettingsButton at="timer" layout="slide" className="-ml-4 group-hover/host:ml-0 focus-visible:ml-0" />
     </div>
   );
 }

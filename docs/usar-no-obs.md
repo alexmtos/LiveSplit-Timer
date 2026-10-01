@@ -37,7 +37,7 @@ Confira também se a aceleração de hardware das fontes de navegador está ativ
 
 ## Esconder a engrenagem na live
 
-Ative **Modo stream** nas configurações ou adicione `stream=1` à URL. A engrenagem fica invisível e só aparece quando o cursor passa sobre o timer (ou, sem o timer, sobre o canto dela). No OBS, isso acontece apenas na janela **Interagir**.
+Ative **Modo stream** nas configurações ou adicione `stream=1` à URL. A engrenagem fica invisível e só aparece quando o cursor passa sobre ela ou, no cabeçalho, no timer e nas previsões, sobre a seção do topo da página. No OBS, isso acontece apenas na janela **Interagir**.
 
 O modo stream também impede que o painel de configurações abra sozinho na live quando o LiveSplit está fechado.
 
@@ -58,7 +58,7 @@ Para gerar a URL de uma página, escolha-a na lista da seção **URL para o OBS*
 ## Alterar configurações de dentro do OBS
 
 1. Clique com o botão direito na fonte de navegador e escolha **Interagir**.
-2. Passe o cursor sobre o timer (ou, sem o timer, no canto superior direito) e clique na engrenagem.
+2. Passe o cursor sobre a seção do topo da página e clique na engrenagem, à direita.
 
 As alterações feitas assim ficam salvas e valem para todas as fontes que não definem a mesma opção na URL.
 

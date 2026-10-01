@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useSplitSelection } from '@/contexts/SelectionContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -75,6 +75,20 @@ function reveal(container: HTMLElement | null, row: HTMLElement | null | undefin
   }
 }
 
+/** Thin accent bar and glow at the top or bottom edge while the table can scroll that way. */
+function ScrollHint({ edge, shown }: { edge: 'top' | 'bottom'; shown: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        'pointer-events-none absolute inset-x-0 z-10 h-8 from-accent/25 to-transparent transition-opacity duration-200',
+        edge === 'top' ? 'top-0 border-t-2 border-accent/70 bg-gradient-to-b' : 'bottom-0 border-b-2 border-accent/70 bg-gradient-to-t',
+        shown ? 'opacity-100' : 'opacity-0',
+      )}
+    />
+  );
+}
+
 /** `printable`: every section open and no scrolling, for the image export. */
 export function SplitsTable({ printable = false }: { printable?: boolean }) {
   const { state, comparison, timingMethod } = useLiveSplit();
@@ -82,6 +96,9 @@ export function SplitsTable({ printable = false }: { printable?: boolean }) {
   const { selected, toggle: toggleSelected } = useSplitSelection();
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+  // Whether there is more to scroll above and below.
+  const [more, setMore] = useState({ up: false, down: false });
   const currentIndex = state?.currentSplitIndex ?? -1;
   // Sections opened by hand close again when the run moves to another split, like the original overlay.
   const [opened, setOpened] = useState<{ at: number; keys: ReadonlySet<string> }>({ at: -1, keys: new Set() });
@@ -96,6 +113,25 @@ export function SplitsTable({ printable = false }: { printable?: boolean }) {
     const container = containerRef.current;
     reveal(container, container?.querySelector<HTMLElement>(`[data-split-index="${currentIndex}"]`));
   }, [currentIndex, segmentCount, selected]);
+
+  const hasTable = !printable && (state?.run.segments.length ?? 0) > 1;
+  const updateMore = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    // A pixel of slack: zoomed pages scroll to fractional positions.
+    const up = container.scrollTop > 1;
+    const down = container.scrollTop + container.clientHeight < container.scrollHeight - 1;
+    setMore((prev) => (prev.up === up && prev.down === down ? prev : { up, down }));
+  }, []);
+
+  // Also when the table or its content changes size (window resized, a section opened).
+  useEffect(() => {
+    if (!hasTable) return;
+    const observer = new ResizeObserver(updateMore);
+    if (containerRef.current) observer.observe(containerRef.current);
+    if (tableRef.current) observer.observe(tableRef.current);
+    return () => observer.disconnect();
+  }, [hasTable, updateMore]);
 
   // A split selected here or on the graph is brought into view.
   useEffect(() => {
@@ -183,63 +219,71 @@ export function SplitsTable({ printable = false }: { printable?: boolean }) {
     );
   };
 
-  return (
-    <div
-      ref={containerRef}
-      className={cn('splits-scroll relative bg-black/10', printable ? 'overflow-visible' : 'flex-1 overflow-y-auto overflow-x-hidden')}
-    >
-      <table className="w-full table-fixed border-collapse">
-        <colgroup>
-          {hasIcons && <col className="w-8" />}
-          <col />
-          <col className="w-[100px]" />
-          <col className="w-[90px]" />
-        </colgroup>
-        <tbody>
-          {groups.map((group, groupIndex) => {
-            const rows = group.indices.map((i) => buildRow(state, i, comparison, timingMethod));
-            if (group.section === null) return rows.map(renderRow);
+  const table = (
+    <table ref={tableRef} className="w-full table-fixed border-collapse">
+      <colgroup>
+        {hasIcons && <col className="w-8" />}
+        <col />
+        <col className="w-[100px]" />
+        <col className="w-[90px]" />
+      </colgroup>
+      <tbody>
+        {groups.map((group, groupIndex) => {
+          const rows = group.indices.map((i) => buildRow(state, i, comparison, timingMethod));
+          if (group.section === null) return rows.map(renderRow);
 
-            const key = `${groupIndex}:${group.section}`;
-            const containsActive = group.indices.includes(currentIndex);
-            const containsSelected = selected !== null && group.indices.includes(selected);
-            const expanded =
-              printable || settings.alwaysExpandedSplits || containsActive || containsSelected || openKeys.has(key);
-            const last = rows[rows.length - 1];
+          const key = `${groupIndex}:${group.section}`;
+          const containsActive = group.indices.includes(currentIndex);
+          const containsSelected = selected !== null && group.indices.includes(selected);
+          const expanded =
+            printable || settings.alwaysExpandedSplits || containsActive || containsSelected || openKeys.has(key);
+          const last = rows[rows.length - 1];
 
-            return (
-              <React.Fragment key={key}>
-                <tr
-                  onClick={settings.alwaysExpandedSplits ? undefined : () => toggleSection(key)}
+          return (
+            <React.Fragment key={key}>
+              <tr
+                onClick={settings.alwaysExpandedSplits ? undefined : () => toggleSection(key)}
+                className={cn(
+                  'border-b border-accent/20 bg-accent/[0.08] transition-colors',
+                  !settings.alwaysExpandedSplits && 'cursor-pointer hover:bg-accent/[0.12]',
+                )}
+                aria-expanded={expanded}
+              >
+                <td colSpan={columns - 2} className="py-2 pl-3 pr-3">
+                  <div className="truncate font-semibold text-accent" title={group.section}>
+                    {group.section}
+                  </div>
+                </td>
+                <td className="whitespace-nowrap py-2 pr-3 text-right font-mono text-base font-bold tabular-nums text-[var(--text-dim)]">
+                  {formatTime(last.time)}
+                </td>
+                <td
                   className={cn(
-                    'border-b border-accent/20 bg-accent/[0.08] transition-colors',
-                    !settings.alwaysExpandedSplits && 'cursor-pointer hover:bg-accent/[0.12]',
+                    'whitespace-nowrap py-2 pr-[15px] text-right font-mono text-[0.95em] font-bold tabular-nums',
+                    last.status ? STATUS_TEXT_CLASS[last.status] : 'text-[var(--text-dim)]',
                   )}
-                  aria-expanded={expanded}
                 >
-                  <td colSpan={columns - 2} className="py-2 pl-3 pr-3">
-                    <div className="truncate font-semibold text-accent" title={group.section}>
-                      {group.section}
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap py-2 pr-3 text-right font-mono text-base font-bold tabular-nums text-[var(--text-dim)]">
-                    {formatTime(last.time)}
-                  </td>
-                  <td
-                    className={cn(
-                      'whitespace-nowrap py-2 pr-[15px] text-right font-mono text-[0.95em] font-bold tabular-nums',
-                      last.status ? STATUS_TEXT_CLASS[last.status] : 'text-[var(--text-dim)]',
-                    )}
-                  >
-                    {last.isDone ? formatDelta(last.delta) : '-'}
-                  </td>
-                </tr>
-                {expanded && rows.map(renderRow)}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                  {last.isDone ? formatDelta(last.delta) : '-'}
+                </td>
+              </tr>
+              {expanded && rows.map(renderRow)}
+            </React.Fragment>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+
+  if (printable) return <div className="bg-black/10">{table}</div>;
+
+  return (
+    <div className="relative flex min-h-0 flex-1 flex-col bg-black/10">
+      {/* `relative`: the rows' offsetTop, used by reveal(), is measured from here. */}
+      <div ref={containerRef} onScroll={updateMore} className="splits-scroll relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+        {table}
+      </div>
+      <ScrollHint edge="top" shown={more.up} />
+      <ScrollHint edge="bottom" shown={more.down} />
     </div>
   );
 }

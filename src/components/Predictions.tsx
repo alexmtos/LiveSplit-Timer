@@ -8,6 +8,7 @@ import { SLOW_INTERVAL_MS } from '@/lib/ticker';
 import { bestPossibleTime, currentPace, pickTime } from '@/lib/run';
 import { formatTime } from '@/lib/time';
 import { cn } from '@/lib/utils';
+import { SettingsButton } from './SettingsButton';
 
 /**
  * Best possible time and predicted time, computed locally: the WebSocket
@@ -31,8 +32,8 @@ export function Predictions() {
         : 'text-behind';
 
   return (
-    <div className="shrink-0 border-b border-white/10 px-5 py-3">
-      <div className="grid grid-cols-2 gap-5">
+    <div className="group/host flex shrink-0 items-center gap-3 border-b border-white/10 px-5 py-3">
+      <div className="grid flex-1 grid-cols-2 gap-5">
         <div className="flex flex-col items-center text-center">
           <span className="mb-1 text-[0.8rem] font-medium uppercase tracking-[0.5px] text-[var(--text-dim)]">
             {t('prediction_best_possible')}
@@ -46,6 +47,8 @@ export function Predictions() {
           <span className={cn('font-mono text-[1.8rem] font-bold leading-tight tabular-nums', predictedClass)}>{formatTime(predicted)}</span>
         </div>
       </div>
+
+      <SettingsButton at="predictions" layout="slide" className="-ml-3 group-hover/host:ml-0 focus-visible:ml-0" />
     </div>
   );
 }

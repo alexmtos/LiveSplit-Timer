@@ -6,7 +6,7 @@ import { Controls } from './Controls';
 import { ExportViewProvider } from './ExportView';
 import { Header } from './Header';
 import { Predictions } from './Predictions';
-import { SettingsButton, SettingsButtonProvider } from './SettingsButton';
+import { SettingsButton, SettingsButtonProvider, settingsButtonPlacement } from './SettingsButton';
 import { SettingsModal } from './SettingsModal';
 import { SplitsTable } from './SplitsTable';
 import { CommandErrorToast, ConnectionNotice, ResetConfirmToast } from './StatusNotices';
@@ -70,12 +70,9 @@ export function Overlay({ only }: { only?: OverlaySection }) {
   useLiveSplitHotkeys(settings.hotkeysEnabled && !isSettingsOpen);
 
   const sections = only ? [only] : ORDER.filter((section) => settings[SECTION_SETTING[section]]);
-  // The settings button sits in the timer when there is one, otherwise in the window's corner.
-  const timerShown = only ? only === 'timer' : settings.showTimer;
-  const settingsButton = useMemo(
-    () => ({ placement: timerShown ? ('timer' as const) : ('window' as const), open: openSettings }),
-    [timerShown, openSettings],
-  );
+  // The settings button sits in the section at the top of the page.
+  const placement = settingsButtonPlacement(only ?? ORDER.find((section) => settings[SECTION_SETTING[section]]));
+  const settingsButton = useMemo(() => ({ placement, open: openSettings }), [placement, openSettings]);
 
   return (
     <SelectionProvider>
@@ -83,7 +80,7 @@ export function Overlay({ only }: { only?: OverlaySection }) {
         <ExportViewProvider>
           <main className="relative flex h-screen w-full flex-col overflow-hidden font-sans text-white">
             <ThemeManager />
-  
+
             <div
               id="ls-window"
               className={cn(
@@ -92,7 +89,7 @@ export function Overlay({ only }: { only?: OverlaySection }) {
                 only && only !== 'splits' && 'justify-center',
               )}
             >
-              <SettingsButton at="window" />
+              <SettingsButton at="window" layout="corner" className="right-4 top-3" />
               {sections.map((section, index) => (
                 <React.Fragment key={section}>
                   {SECTIONS[section](!!only)}
@@ -102,7 +99,7 @@ export function Overlay({ only }: { only?: OverlaySection }) {
               ))}
               {sections.length === 0 && <ConnectionNotice />}
             </div>
-  
+
             <ResetConfirmToast />
             <CommandErrorToast />
             <SettingsModal isOpen={isSettingsOpen} onClose={closeSettings} />

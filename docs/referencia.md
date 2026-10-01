@@ -64,9 +64,15 @@ Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nom
 | Splits sempre expandidos | Desligado | Mostra os subsplits de todas as seções. Desligado, só a seção atual e as que você abrir ficam expandidas. |
 | Atalhos de teclado | Ligado | Ativa os [atalhos de teclado](#atalhos-de-teclado) da página. |
 | Atualizações por segundo | 60 | Quantas vezes por segundo o timer, os deltas, as previsões e o gráfico são redesenhados durante a run: 10, 20, 30 ou 60. O consumo de CPU acompanha esse número; o tempo continua exato em qualquer opção. |
-| Modo stream | Desligado | Esconde a engrenagem até o cursor passar sobre o timer (ou, sem o timer, sobre o canto da engrenagem). Escondida, ela não ocupa espaço ao lado do timer. |
+| Modo stream | Desligado | Esconde a engrenagem até o cursor passar sobre ela. No cabeçalho, no timer e nas previsões, basta passar sobre a seção, e a engrenagem escondida não ocupa espaço. Nos controles, ela mantém o espaço, para os botões não mudarem de lugar sob o cursor. |
 
-A engrenagem, que abre o painel, fica à direita do timer, centralizada na altura dele. Sem o timer na página, ela fica no canto superior direito.
+A engrenagem, que abre o painel, fica na seção do topo da página:
+
+| Seção do topo | Onde fica a engrenagem |
+|---------------|------------------------|
+| Cabeçalho, timer ou previsões | À direita do conteúdo, centralizada na altura da seção, que abre espaço para ela |
+| Controles | À direita do botão de reset, com espaço próprio. Na página `/controls`, numa faixa acima dos botões |
+| Gráfico ou tabela de splits | No canto superior direito, sobre a seção, que não se desloca |
 
 As seções aparecem nesta ordem: cabeçalho, timer, previsões, gráfico, controles e tabela de splits.
 
@@ -134,6 +140,8 @@ As páginas de uma seção ignoram as opções de exibição e sempre mostram a 
 | Arrastar a borda de baixo do gráfico | Ajusta a altura do gráfico entre 80 e 400 pixels. A altura fica salva no navegador. |
 
 O gráfico marca o fim de cada seção com uma linha tracejada e o nome da seção. Embaixo, mostra o delta do primeiro e do último ponto, do melhor e do pior, e do fim de cada seção. Splits pulados aparecem com um X vermelho. Com a run em andamento, o ponto atual mostra a todo momento a diferença entre o tempo e a comparação do split atual, desde o início da run. Enquanto você está à frente e o LiveSplit ainda não mostra o delta ao vivo, esse ponto não muda a escala do gráfico: se estiver fora dela, fica na borda.
+
+A tabela não mostra barra de rolagem. Quando há mais splits acima ou abaixo da área visível, a borda superior ou inferior da tabela ganha um destaque na cor do tema; role com a roda do mouse ou arraste no touch.
 
 Runs com um único split não mostram o gráfico nem a tabela.
 
