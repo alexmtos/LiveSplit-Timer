@@ -7,7 +7,7 @@ import { useSettings } from '@/contexts/SettingsContext';
 import { useExport } from '@/hooks/useExport';
 import { useI18n } from '@/hooks/useI18n';
 import { buildWsUrl, isBlockedByMixedContent, parseWsUrl, testConnection, type TestResult } from '@/lib/connection';
-import { buildOverlayUrl } from '@/lib/settings';
+import { GAME_ICON_SIZES, SPLIT_ICON_SIZES, buildOverlayUrl } from '@/lib/settings';
 import { LANGUAGE_OPTIONS, type TranslationKey } from '@/lib/translations';
 import { cn } from '@/lib/utils';
 import { OVERLAY_SECTIONS, SECTION_SETTING, type ConnectionDiagnostic, type OverlaySection, type Settings } from '@/types';
@@ -504,34 +504,48 @@ const TOGGLE_MESSAGES: Partial<Record<BooleanSetting, [on: TranslationKey, off: 
   showTable: ['notification_table_enabled', 'notification_table_disabled'],
 };
 
-/** How see-through the background is in transparent mode; the panel steps aside once you let go. */
-function TransparencySlider({
+/** A slider whose effect shows on the overlay; the panel steps aside once you let go (`onCommit`). */
+function RangeSetting({
+  title,
+  desc,
   value,
+  unit,
+  min,
+  max,
+  step,
   onChange,
   onCommit,
 }: {
+  title: string;
+  desc: string;
   value: number;
+  unit: string;
+  min: number;
+  max: number;
+  step: number;
   onChange: (value: number) => void;
   onCommit: (value: number) => void;
 }) {
-  const { t } = useI18n();
   const id = useId();
   const commit = (event: React.SyntheticEvent<HTMLInputElement>) => onCommit(Number(event.currentTarget.value));
   return (
     <div className="rounded-lg bg-white/[0.03] p-3">
       <div className="mb-1 flex items-center justify-between gap-4">
         <label htmlFor={id} className="text-sm font-semibold text-white">
-          {t('transparency_title')}
+          {title}
         </label>
-        <span className="font-mono text-sm text-accent">{value}%</span>
+        <span className="font-mono text-sm text-accent">
+          {value}
+          {unit}
+        </span>
       </div>
-      <p className="mb-3 text-xs text-[var(--text-dim)]">{t('transparency_desc')}</p>
+      <p className="mb-3 text-xs text-[var(--text-dim)]">{desc}</p>
       <input
         id={id}
         type="range"
-        min={0}
-        max={100}
-        step={5}
+        min={min}
+        max={max}
+        step={step}
         value={value}
         onChange={(event) => onChange(Number(event.currentTarget.value))}
         onPointerUp={commit}
@@ -851,8 +865,14 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
               onChange={toggleTransparent}
             />
             {settings.chromaKey.enabled && (
-              <TransparencySlider
+              <RangeSetting
+                title={t('transparency_title')}
+                desc={t('transparency_desc')}
                 value={settings.transparency}
+                unit="%"
+                min={0}
+                max={100}
+                step={5}
                 onChange={(transparency) => updateSettings({ transparency })}
                 onCommit={(transparency) => showPeek(`${t('transparency_title')}: ${transparency}%`)}
               />
@@ -890,6 +910,24 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                   onChange={() => toggle(opt.key)}
                 />
               ))}
+              <RangeSetting
+                title={t('game_icon_size_title')}
+                desc={t('game_icon_size_desc')}
+                value={settings.gameIconSize}
+                unit="px"
+                {...GAME_ICON_SIZES}
+                onChange={(gameIconSize) => updateSettings({ gameIconSize })}
+                onCommit={(size) => showPeek(`${t('game_icon_size_title')}: ${size}px`)}
+              />
+              <RangeSetting
+                title={t('split_icon_size_title')}
+                desc={t('split_icon_size_desc')}
+                value={settings.splitIconSize}
+                unit="px"
+                {...SPLIT_ICON_SIZES}
+                onChange={(splitIconSize) => updateSettings({ splitIconSize })}
+                onCommit={(size) => showPeek(`${t('split_icon_size_title')}: ${size}px`)}
+              />
               <RefreshRatePicker value={settings.refreshRate} onChange={(refreshRate) => updateSettings({ refreshRate })} />
             </div>
           </section>

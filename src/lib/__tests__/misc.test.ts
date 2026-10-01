@@ -147,6 +147,16 @@ describe('URL overrides', () => {
     expect(url).toBe('http://x/timer?lang=pt-BR');
   });
 
+  it('reads the image sizes within their ranges', () => {
+    expect(parseUrlOverrides('?gameicon=64&spliticon=32', saved)).toEqual({ gameIconSize: 64, splitIconSize: 32 });
+    expect(parseUrlOverrides('?gameicon=500&spliticon=8', saved)).toEqual({});
+    const settings = { ...DEFAULT_SETTINGS, gameIconSize: 48, splitIconSize: 30 };
+    const url = buildOverlayUrl('http://x', '/splits', settings);
+    expect(url).toBe('http://x/splits?lang=pt-BR&gameicon=48&spliticon=30');
+    expect({ ...DEFAULT_SETTINGS, ...parseUrlOverrides(new URL(url).search, DEFAULT_SETTINGS.wsUrl) }).toEqual(settings);
+    expect(sanitizeSettings({ gameIconSize: 40.4, splitIconSize: 'big' })).toMatchObject({ gameIconSize: 40, splitIconSize: 20 });
+  });
+
   it('reads the section order, completing it with the default order', () => {
     expect(parseUrlOverrides('?order=table,timer,timer,nope', saved)).toEqual({
       sectionOrder: ['splits', 'timer', 'header', 'predictions', 'graph', 'controls'],

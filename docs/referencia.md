@@ -55,7 +55,7 @@ Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nom
 
 | Opção | Padrão | Descrição |
 |-------|--------|-----------|
-| Mostrar cabeçalho | Ligado | Jogo, categoria, PB e recorde mundial. |
+| Mostrar cabeçalho | Ligado | Jogo, categoria, PB e recorde mundial. Se o jogo e a categoria não cabem lado a lado, a categoria passa para a linha de baixo. |
 | Mostrar timer | Ligado | Timer principal e delta atual. |
 | Mostrar previsões | Ligado | Tempo ideal e previsão atual. |
 | Mostrar gráfico de comparação | Ligado | Gráfico do delta ao longo da run. |
@@ -63,6 +63,8 @@ Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nom
 | Mostrar tabela de splits | Ligado | Lista de splits, agrupada por seção. |
 | Splits sempre expandidos | Desligado | Mostra os subsplits de todas as seções. Desligado, só a seção atual e as que você abrir ficam expandidas. |
 | Atalhos de teclado | Ligado | Ativa os [atalhos de teclado](#atalhos-de-teclado) da página. |
+| Tamanho da imagem do jogo | 24 px | Maior largura ou altura da imagem do jogo no cabeçalho, de 16 a 128 px. A imagem cresce ou diminui, mantendo a proporção, até o primeiro lado atingir esse tamanho. |
+| Tamanho dos ícones dos splits | 20 px | O mesmo para as imagens dos splits na tabela, como retratos de personagens, de 16 a 64 px. A coluna e as linhas se ajustam ao tamanho. |
 | Atualizações por segundo | 60 | Quantas vezes por segundo o timer, os deltas, as previsões e o gráfico são redesenhados durante a run: 10, 20, 30 ou 60. O consumo de CPU acompanha esse número; o tempo continua exato em qualquer opção. |
 | Modo stream | Desligado | Esconde a engrenagem até o cursor passar sobre ela. No cabeçalho, no timer e nas previsões, basta passar sobre a seção, e a engrenagem escondida não ocupa espaço. Nos controles, ela mantém o espaço, para os botões não mudarem de lugar sob o cursor. |
 
@@ -112,6 +114,8 @@ http://localhost:3000/?host=192.168.0.10&theme=matrix&transparent=1&stream=1&hid
 | `transparent` | booleano | Modo transparente. |
 | `transparency` | `0`–`100` | Transparência do fundo no modo transparente. |
 | `fps` | `10`, `20`, `30`, `60` | Atualizações por segundo. |
+| `gameicon` | `16`–`128` | Tamanho da imagem do jogo, em pixels. |
+| `spliticon` | `16`–`64` | Tamanho dos ícones dos splits, em pixels. |
 | `stream` | booleano | Modo stream. |
 | `expanded` | booleano | Splits sempre expandidos. |
 | `hotkeys` | booleano | Liga ou desliga os atalhos de teclado. |

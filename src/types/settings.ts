@@ -24,6 +24,10 @@ export interface Settings {
   };
   /** In transparent mode, how transparent the background is: 100 = fully transparent, 0 = the theme's background. */
   transparency: number;
+  /** Largest width or height of the game image in the header, in CSS pixels (whichever it reaches first). */
+  gameIconSize: number;
+  /** Largest width or height of the split icons in the table, in CSS pixels (whichever they reach first). */
+  splitIconSize: number;
   /** Times per second the running timer, deltas and graph are redrawn (one of REFRESH_RATES in lib/ticker). */
   refreshRate: number;
 }

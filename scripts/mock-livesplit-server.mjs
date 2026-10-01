@@ -43,6 +43,9 @@ const speedrunMetadata = args.includes('--src')
 // 1x1 PNGs, enough to check that icons reach the overlay.
 const ICON_RED = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
 const ICON_BLUE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPj/HwADBwIAMCbHYQAAAABJRU5ErkJggg==';
+// Non-square ones, to check that images keep their proportions: a 2x1 game image and a 1x2 "portrait".
+const ICON_WIDE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAADUlEQVR4nGNgYPgPRAAFAgH/wSuWnwAAAABJRU5ErkJggg==';
+const ICON_TALL = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAIAAAAW4yFwAAAADklEQVR4nGNgOMHAAMQABkgBkTZnYyEAAAAASUVORK5CYII=';
 
 // [name, PB segment seconds, best segment seconds, icon]
 const FIXTURE = [
@@ -52,7 +55,7 @@ const FIXTURE = [
   ['{World 1}Bowser 1', 95.4, 90.2, ICON_BLUE],
   ['-2-1', 80.1, 77.5, null],
   ['{World 2}Castle', 102.6, 98.9, null],
-  ['Final Boss', 130.0, 121.4, ICON_RED],
+  ['Final Boss', 130.0, 121.4, ICON_TALL],
 ];
 
 const segmentCount = Number(option('segments', '0'));
@@ -63,7 +66,7 @@ const SEGMENTS =
         const section = Math.floor(i / 8) + 1;
         const last = i % 8 === 7 || i === segmentCount - 1;
         const pb = 50 + ((i * 37) % 23);
-        return [last ? `{Area ${section}}Boss ${section}` : `-${section}-${(i % 8) + 1}`, pb, pb - 2 - ((i * 13) % 5), i % 8 === 0 ? ICON_RED : null];
+        return [last ? `{Area ${section}}Boss ${section}` : `-${section}-${(i % 8) + 1}`, pb, pb - 2 - ((i * 13) % 5), i % 16 === 0 ? ICON_RED : i % 16 === 8 ? ICON_TALL : null];
       })
     : FIXTURE;
 
@@ -112,7 +115,7 @@ function currentRealTime() {
 function state({ includeIcons }) {
   return {
     run: {
-      gameIcon: includeIcons ? ICON_BLUE : null,
+      gameIcon: includeIcons ? ICON_WIDE : null,
       gameName: 'Mock Game 64',
       categoryName: 'Any%',
       startingOffset: 0,

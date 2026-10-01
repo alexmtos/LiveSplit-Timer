@@ -21,6 +21,7 @@ import {
 import { formatDelta, formatTime } from '@/lib/time';
 import { cn } from '@/lib/utils';
 import type { LiveSplitState, TimingMethod } from '@/types';
+import { FittedImage } from './FittedImage';
 
 interface Row {
   index: number;
@@ -183,11 +184,8 @@ export function SplitsTable({ printable = false }: { printable?: boolean }) {
         )}
       >
         {hasIcons && (
-          <td className="px-1">
-            {row.icon && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={row.icon} alt="" className="mx-auto block h-5 w-5 rounded-[3px] object-cover" />
-            )}
+          <td className="px-1 py-1">
+            {row.icon && <FittedImage src={row.icon} size={settings.splitIconSize} className="mx-auto block rounded-[3px]" />}
           </td>
         )}
         <td className="pl-2.5 pr-3">
@@ -222,7 +220,8 @@ export function SplitsTable({ printable = false }: { printable?: boolean }) {
   const table = (
     <table ref={tableRef} className="w-full table-fixed border-collapse">
       <colgroup>
-        {hasIcons && <col className="w-8" />}
+        {/* The icon plus the cell's padding. */}
+        {hasIcons && <col style={{ width: settings.splitIconSize + 8 }} />}
         <col />
         <col className="w-[100px]" />
         <col className="w-[90px]" />

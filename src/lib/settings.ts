@@ -5,6 +5,10 @@ import { THEME_COLORS } from './themes';
 
 export const SETTINGS_STORAGE_KEY = 'livesplit-settings';
 
+/** Allowed maximum sizes of the images, in CSS pixels. */
+export const GAME_ICON_SIZES = { min: 16, max: 128, step: 4 } as const;
+export const SPLIT_ICON_SIZES = { min: 16, max: 64, step: 2 } as const;
+
 export const DEFAULT_SETTINGS: Settings = {
   language: 'pt-BR',
   theme: 'default',
@@ -25,6 +29,8 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   transparency: 100,
   refreshRate: DEFAULT_REFRESH_RATE,
+  gameIconSize: 24,
+  splitIconSize: 20,
 };
 
 function toRefreshRate(value: unknown): number | null {
@@ -55,6 +61,12 @@ export function toSectionOrder(value: unknown): OverlaySection[] | null {
 
 export const isDefaultSectionOrder = (order: readonly OverlaySection[]) =>
   order.every((section, index) => section === OVERLAY_SECTIONS[index]);
+
+/** A whole number of pixels within `range`, or null. */
+function toPixels(value: unknown, range: { min: number; max: number }): number | null {
+  const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
+  return typeof number === 'number' && Number.isFinite(number) && number >= range.min && number <= range.max ? Math.round(number) : null;
+}
 
 type BooleanKey = {
   [K in keyof Settings]: Settings[K] extends boolean ? K : never;
@@ -119,6 +131,8 @@ export function sanitizeSettings(raw: unknown, fallbackLanguage: Language = DEFA
     transparency: toPercent(input.transparency) ?? DEFAULT_SETTINGS.transparency,
     refreshRate: toRefreshRate(input.refreshRate) ?? DEFAULT_SETTINGS.refreshRate,
     sectionOrder: toSectionOrder(input.sectionOrder) ?? [...OVERLAY_SECTIONS],
+    gameIconSize: toPixels(input.gameIconSize, GAME_ICON_SIZES) ?? DEFAULT_SETTINGS.gameIconSize,
+    splitIconSize: toPixels(input.splitIconSize, SPLIT_ICON_SIZES) ?? DEFAULT_SETTINGS.splitIconSize,
   };
   for (const key of BOOLEAN_KEYS) {
     if (typeof input[key] === 'boolean') settings[key] = input[key] as boolean;
@@ -148,7 +162,7 @@ function parseSections(value: string | null): OverlaySection[] {
  * saved, so each OBS browser source can have its own configuration:
  *
  *   ?host=192.168.0.10&port=15721&theme=matrix&lang=en-US&transparent=1&transparency=60
- *   &stream=1&hide=controls,graph&expanded=1&hotkeys=0&order=timer,splits
+ *   &stream=1&hide=controls,graph&expanded=1&hotkeys=0&order=timer,splits&gameicon=48&spliticon=32
  *
  * `order` lists sections from the top; the ones it leaves out follow in the default order.
  */
@@ -187,6 +201,11 @@ export function parseUrlOverrides(search: string, currentWsUrl: string): Partial
 
   const refreshRate = toRefreshRate(params.get('fps'));
   if (refreshRate !== null) overrides.refreshRate = refreshRate;
+
+  const gameIconSize = toPixels(params.get('gameicon'), GAME_ICON_SIZES);
+  if (gameIconSize !== null) overrides.gameIconSize = gameIconSize;
+  const splitIconSize = toPixels(params.get('spliticon'), SPLIT_ICON_SIZES);
+  if (splitIconSize !== null) overrides.splitIconSize = splitIconSize;
 
   const flags: [string, BooleanKey][] = [
     ['stream', 'streamMode'],
@@ -233,6 +252,8 @@ export function buildOverlayUrl(
     if (settings.transparency !== DEFAULT_SETTINGS.transparency) params.set('transparency', String(settings.transparency));
   }
   if (settings.refreshRate !== DEFAULT_SETTINGS.refreshRate) params.set('fps', String(settings.refreshRate));
+  if (settings.gameIconSize !== DEFAULT_SETTINGS.gameIconSize) params.set('gameicon', String(settings.gameIconSize));
+  if (settings.splitIconSize !== DEFAULT_SETTINGS.splitIconSize) params.set('spliticon', String(settings.splitIconSize));
   if (settings.streamMode) params.set('stream', '1');
   if (settings.alwaysExpandedSplits) params.set('expanded', '1');
   if (!settings.hotkeysEnabled) params.set('hotkeys', '0');
