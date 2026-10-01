@@ -96,7 +96,7 @@ Ative **Modo Transparente** nas configurações ou adicione `transparent=1` à U
 
 ## A engrenagem sumiu
 
-O **Modo stream** está ligado. Passe o cursor à direita do timer (ou, sem o timer, no canto superior direito da página) para ver a engrenagem. No OBS, faça isso pela janela **Interagir** da fonte.
+O **Modo stream** está ligado. Passe o cursor sobre o timer (ou, sem o timer, no canto superior direito da página) para ver a engrenagem; o timer se desloca para dar lugar a ela. No OBS, faça isso pela janela **Interagir** da fonte.
 
 ## Espaço ou R não fazem nada
 
