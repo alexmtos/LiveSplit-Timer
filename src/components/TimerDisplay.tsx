@@ -29,7 +29,7 @@ export function TimerDisplay({ fill = false }: { fill?: boolean }) {
   return (
     <div
       className={cn(
-        'flex min-h-[90px] shrink-0 items-center justify-between gap-4 border-b border-white/10 px-5 py-4',
+        'group/timer flex min-h-[90px] shrink-0 items-center justify-between gap-4 border-b border-white/10 px-5 py-4',
         fill && 'flex-1 border-b-0 [container-type:size]',
       )}
     >

@@ -45,7 +45,12 @@ export function SettingsButton({ at }: { at: Exclude<SettingsButtonPlacement, 'n
         'z-30 flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/5 text-white transition-all hover:border-accent hover:bg-accent/10 hover:text-accent',
         at === 'window' ? 'absolute right-4 top-3' : 'relative self-center',
         // Stream mode: invisible on the broadcast, revealed on hover or keyboard focus.
-        settings.streamMode && 'opacity-0 hover:opacity-100 focus-visible:opacity-100',
+        settings.streamMode && at === 'window' && 'opacity-0 hover:opacity-100 focus-visible:opacity-100',
+        // In the timer it also takes no room while hidden (the negative margin cancels the
+        // timer's gap), so the timer slides over as it appears and disappears.
+        settings.streamMode &&
+          at === 'timer' &&
+          '-ml-4 w-0 overflow-hidden border-0 opacity-0 group-hover/timer:ml-0 group-hover/timer:w-8 group-hover/timer:border group-hover/timer:opacity-100 focus-visible:ml-0 focus-visible:w-8 focus-visible:border focus-visible:opacity-100',
       )}
     >
       <GearIcon size={20} />
