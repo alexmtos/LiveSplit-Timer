@@ -16,7 +16,7 @@ Quando uma opção aparece nos dois lugares, o valor da URL tem prioridade. Se v
 
 Se o app não conseguir se conectar ao LiveSplit até 3 segundos depois de abrir a página, o painel abre sozinho, com uma lista do que verificar. Isso não acontece no modo stream nem nas [páginas de uma seção](#páginas), para o painel nunca aparecer na live.
 
-Ao mudar o tema ou uma opção que muda o overlay, o painel sai da frente por 3 segundos e mostra uma mensagem, para você ver o resultado. Clique em qualquer lugar para trazê-lo de volta antes.
+Ao mudar o tema ou uma opção que muda o overlay, o resto do painel some e só a opção que você está ajustando fica na tela, no mesmo lugar e ainda utilizável, como os controles de brilho de uma TV. Assim você vê o resultado no overlay e pode continuar ajustando. O painel volta 6 segundos depois da última mudança; para trazê-lo antes, clique fora da opção ou pressione Esc. Ao exportar, o painel inteiro sai da frente e mostra uma mensagem com o resultado.
 
 ### Conexão
 
@@ -49,7 +49,7 @@ As opções ficam desativadas quando o componente está em modo somente leitura.
 | Modo Transparente | Desligado | Remove o fundo e a borda da página para uso no OBS. |
 | Transparência do fundo | 100% | Aparece com o modo transparente ligado. Em 100% o fundo some; em valores menores, o fundo do tema aparece por trás do overlay com essa transparência. |
 
-Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nome para ver todos os temas. Dois segundos depois da troca, o painel sai da frente para mostrar o tema no overlay.
+Para trocar de tema, use as setas ao lado do nome do tema atual ou clique no nome para ver todos os temas. Ao trocar, só o seletor de tema fica na tela, e você pode continuar passando pelos temas enquanto vê cada um no overlay.
 
 ### Exibição
 

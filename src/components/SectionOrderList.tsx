@@ -28,7 +28,7 @@ function moved(order: readonly OverlaySection[], section: OverlaySection, index:
  * The page's sections as blocks, top to bottom, that can be dragged into a new
  * order: anywhere on the block with a mouse, by the grip on touch screens (so
  * the panel still scrolls), or with the arrow keys on the grip. `onReorder`
- * runs once, on drop; `byKeyboard` tells keyboard moves apart.
+ * runs once, on drop, or on each arrow press.
  */
 export function SectionOrderList({
   order,
@@ -37,7 +37,7 @@ export function SectionOrderList({
   children,
 }: {
   order: readonly OverlaySection[];
-  onReorder: (order: OverlaySection[], byKeyboard: boolean) => void;
+  onReorder: (order: OverlaySection[]) => void;
   /** Accessible name of the grip of `section`. */
   moveLabel: (section: OverlaySection) => string;
   /** The contents of the block of `section`. */
@@ -139,7 +139,7 @@ export function SectionOrderList({
     const result = draftRef.current;
     setDraft(null);
     setDragged(null);
-    if (commit && result && result.some((section, i) => section !== order[i])) onReorder(result, false);
+    if (commit && result && result.some((section, i) => section !== order[i])) onReorder(result);
   };
 
   const onGripKeyDown = (section: OverlaySection) => (event: React.KeyboardEvent<HTMLButtonElement>) => {
@@ -149,7 +149,7 @@ export function SectionOrderList({
     const index = order.indexOf(section) + step;
     if (index < 0 || index >= order.length) return;
     focusAfterMove.current = section;
-    onReorder(moved(order, section, index), true);
+    onReorder(moved(order, section, index));
   };
 
   return (

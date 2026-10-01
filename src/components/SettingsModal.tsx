@@ -18,10 +18,15 @@ import { ThemeSelector } from './ThemeSelector';
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
 /** Settings section, separated from the next one by a line. */
 const SECTION = 'relative space-y-4 border-b border-white/10 py-6 last:border-b-0 last:pb-0';
-/** After picking a theme, wait this long before stepping aside so the theme can be seen on the overlay. */
-const THEME_PREVIEW_DELAY_MS = 2_000;
-/** How long the panel stays aside (with a message) before coming back. */
-const PEEK_MS = 3_000;
+/** How long the panel stays aside after the last change before coming back. */
+const PEEK_MS = 6_000;
+
+interface Peek {
+  /** Shown when no setting stays on screen. */
+  message: string;
+  /** The setting being changed, left on screen and usable while the rest of the panel is hidden. */
+  control: HTMLElement | null;
+}
 
 type BooleanSetting =
   | 'showHeader'
@@ -179,14 +184,14 @@ function ObsUrlSection() {
   );
 }
 
-function Switch({ checked, onChange, labelledBy }: { checked: boolean; onChange: () => void; labelledBy: string }) {
+function Switch({ checked, onChange, labelledBy }: { checked: boolean; onChange: (source: HTMLElement) => void; labelledBy: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-labelledby={labelledBy}
-      onClick={onChange}
+      onClick={(event) => onChange(event.currentTarget)}
       className={cn(
         'relative h-[26px] w-12 shrink-0 rounded-full border transition-all',
         checked ? 'border-accent bg-accent' : 'border-white/10 bg-white/10',
@@ -212,12 +217,14 @@ function SettingRow({
   title: string;
   desc: string;
   checked: boolean;
-  onChange: () => void;
+  /** Gets the switch, so the panel can keep it on screen while the change shows. */
+  onChange: (source: HTMLElement) => void;
   className?: string;
 }) {
   const id = useId();
   return (
     <div
+      data-setting
       className={cn(
         'flex items-center justify-between gap-5 rounded-lg border border-transparent bg-white/[0.03] p-3 transition-all hover:bg-white/5',
         className,
@@ -504,7 +511,7 @@ const TOGGLE_MESSAGES: Partial<Record<BooleanSetting, [on: TranslationKey, off: 
   showTable: ['notification_table_enabled', 'notification_table_disabled'],
 };
 
-/** A slider whose effect shows on the overlay; the panel steps aside once you let go (`onCommit`). */
+/** A slider whose effect shows on the overlay; `onChange` gets the slider so the panel can keep it on screen. */
 function RangeSetting({
   title,
   desc,
@@ -514,7 +521,6 @@ function RangeSetting({
   max,
   step,
   onChange,
-  onCommit,
 }: {
   title: string;
   desc: string;
@@ -523,13 +529,11 @@ function RangeSetting({
   min: number;
   max: number;
   step: number;
-  onChange: (value: number) => void;
-  onCommit: (value: number) => void;
+  onChange: (value: number, source: HTMLElement) => void;
 }) {
   const id = useId();
-  const commit = (event: React.SyntheticEvent<HTMLInputElement>) => onCommit(Number(event.currentTarget.value));
   return (
-    <div className="rounded-lg bg-white/[0.03] p-3">
+    <div data-setting className="rounded-lg bg-white/[0.03] p-3">
       <div className="mb-1 flex items-center justify-between gap-4">
         <label htmlFor={id} className="text-sm font-semibold text-white">
           {title}
@@ -547,9 +551,7 @@ function RangeSetting({
         max={max}
         step={step}
         value={value}
-        onChange={(event) => onChange(Number(event.currentTarget.value))}
-        onPointerUp={commit}
-        onKeyUp={commit}
+        onChange={(event) => onChange(Number(event.currentTarget.value), event.currentTarget)}
         className="w-full cursor-pointer [accent-color:var(--theme-accent)]"
       />
     </div>
@@ -696,9 +698,13 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   // After a change you can see on the overlay, the panel steps aside for a
-  // moment with a message, then comes back.
-  const [peek, setPeek] = useState<string | null>(null);
-  const peekRef = useRef<string | null>(null);
+  // moment, then comes back. Like a TV's on-screen controls, the setting being
+  // changed stays on screen and usable (`control`); other changes (an export)
+  // hide the whole panel and show a message instead.
+  const [peek, setPeek] = useState<Peek | null>(null);
+  const peekRef = useRef<Peek | null>(null);
+  const themeRef = useRef<HTMLDivElement>(null);
+  const sectionsRef = useRef<HTMLDivElement>(null);
   const peekTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(peekTimer.current), []);
 
@@ -722,7 +728,17 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  // While aside the panel is inert, which drops focus; give it back to the control that had it.
+  // The setting left on screen; the stylesheet hides everything else in the panel.
+  const peekControl = peek?.control ?? null;
+  useEffect(() => {
+    if (!peekControl) return;
+    peekControl.setAttribute('data-peek', '');
+    // Only what is inside the panel's scroll area shows: bring all of the setting in.
+    peekControl.scrollIntoView({ block: 'nearest' });
+    return () => peekControl.removeAttribute('data-peek');
+  }, [peekControl]);
+
+  // Without a control the panel is inert while aside, which drops focus; give it back to the control that had it.
   const focusBeforePeek = useRef<HTMLElement | null>(null);
   useEffect(() => {
     peekRef.current = peek;
@@ -735,40 +751,37 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     clearTimeout(peekTimer.current);
     setPeek(null);
   };
-  const showPeek = (message: string, delay = 0) => {
-    endPeek();
-    const start = () => {
-      // Taken before the panel turns inert and drops the focus.
-      focusBeforePeek.current ??= document.activeElement as HTMLElement | null;
-      setPeek(message);
-      peekTimer.current = setTimeout(() => setPeek(null), PEEK_MS);
-    };
-    if (delay > 0) peekTimer.current = setTimeout(start, delay);
-    else start();
+  /** Steps aside; `source` (or the setting around it) stays on screen, and each new change restarts the wait. */
+  const showPeek = (message: string, source?: Element | null) => {
+    clearTimeout(peekTimer.current);
+    const control = source?.closest<HTMLElement>('[data-setting]') ?? null;
+    // Taken before the panel turns inert and drops the focus.
+    if (!control) focusBeforePeek.current ??= document.activeElement as HTMLElement | null;
+    setPeek({ message, control });
+    peekTimer.current = setTimeout(() => setPeek(null), PEEK_MS);
   };
 
   const selectTheme = (themeId: string) => {
     updateSettings({ theme: themeId });
-    showPeek(`${t('theme_applying')} ${t(`theme_${themeId}` as TranslationKey)}...`, THEME_PREVIEW_DELAY_MS);
+    showPeek(`${t('theme_applying')} ${t(`theme_${themeId}` as TranslationKey)}...`, themeRef.current);
   };
 
-  const toggle = (key: BooleanSetting) => {
+  const toggle = (key: BooleanSetting, source: HTMLElement) => {
     const enabled = !settings[key];
     updateSettings({ [key]: enabled } as Partial<Settings>);
     const messages = TOGGLE_MESSAGES[key];
-    if (messages) showPeek(t(messages[enabled ? 0 : 1]));
+    if (messages) showPeek(t(messages[enabled ? 0 : 1]), source);
   };
 
-  const reorderSections = (sectionOrder: OverlaySection[], byKeyboard: boolean) => {
+  const reorderSections = (sectionOrder: OverlaySection[]) => {
     updateSettings({ sectionOrder });
-    // From the keyboard the panel stays put, so the next arrow press still reaches the block.
-    if (!byKeyboard) showPeek(t('notification_order_changed'));
+    showPeek(t('notification_order_changed'), sectionsRef.current);
   };
 
-  const toggleTransparent = () => {
+  const toggleTransparent = (source: HTMLElement) => {
     const enabled = !settings.chromaKey.enabled;
     updateSettings({ chromaKey: { enabled } });
-    showPeek(t(enabled ? 'notification_chroma_key_enabled' : 'notification_chroma_key_disabled'));
+    showPeek(t(enabled ? 'notification_chroma_key_enabled' : 'notification_chroma_key_disabled'), source);
   };
 
   const saveImage = async () => {
@@ -801,28 +814,31 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
         peek ? 'bg-transparent' : 'bg-black/85',
       )}
       onMouseDown={(event) => {
-        // While the panel is aside, a click brings it back instead of reaching the overlay.
-        if (peek) endPeek();
-        else if (event.target === event.currentTarget) onClose();
+        // While the panel is aside, a click brings it back instead of reaching the overlay,
+        // except on the setting left on screen, which keeps working.
+        if (peek) {
+          if (!peek.control?.contains(event.target as Node)) endPeek();
+        } else if (event.target === event.currentTarget) onClose();
       }}
       data-export-ignore
     >
-      {peek && (
+      {peek && !peek.control && (
         <div
           role="status"
           className="pointer-events-none fixed inset-x-4 bottom-20 mx-auto w-fit rounded-lg border-2 border-accent bg-accent px-8 py-[18px] text-center text-base font-bold text-[color:var(--accent-fg)] shadow-[0_8px_32px_var(--theme-accent)] [animation:fade-in_0.3s_ease] max-sm:bottom-[60px] max-sm:w-auto"
         >
-          {peek}
+          {peek.message}
         </div>
       )}
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        inert={!!peek}
+        inert={!!peek && !peek.control}
+        data-peeking={peek?.control ? '' : undefined}
         className={cn(
           'flex max-h-[90vh] w-full max-w-[500px] flex-col overflow-hidden rounded-lg border border-white/10 bg-[var(--bg-main)] shadow-[0_40px_80px_rgba(0,0,0,0.6)] transition-opacity duration-300 [animation:modal-in_0.3s_ease] max-sm:h-full max-sm:max-h-full max-sm:max-w-full max-sm:rounded-none',
-          peek && 'pointer-events-none opacity-0',
+          peek && !peek.control && 'pointer-events-none opacity-0',
         )}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-white/10 bg-black/30 px-6 py-5">
@@ -857,7 +873,9 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
 
           <section className={SECTION}>
             <h3 className="text-base font-semibold text-accent">{t('theme_title')}</h3>
-            <ThemeSelector value={settings.theme} onSelect={selectTheme} />
+            <div ref={themeRef} data-setting>
+              <ThemeSelector value={settings.theme} onSelect={selectTheme} />
+            </div>
             <SettingRow
               title={t('theme_transparent')}
               desc={t('theme_transparent_desc')}
@@ -873,8 +891,10 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                 min={0}
                 max={100}
                 step={5}
-                onChange={(transparency) => updateSettings({ transparency })}
-                onCommit={(transparency) => showPeek(`${t('transparency_title')}: ${transparency}%`)}
+                onChange={(transparency, source) => {
+                  updateSettings({ transparency });
+                  showPeek(`${t('transparency_title')}: ${transparency}%`, source);
+                }}
               />
             )}
           </section>
@@ -882,24 +902,26 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           <section className={SECTION}>
             <h3 className="text-base font-semibold text-accent">{t('display_title')}</h3>
             <p className="text-[11px] leading-relaxed text-[var(--text-dim)]">{t('display_order_hint')}</p>
-            <SectionOrderList
-              order={settings.sectionOrder}
-              onReorder={reorderSections}
-              moveLabel={(section) => t('display_move_section').replace('{0}', t(SECTION_ROWS[section].title))}
-            >
-              {(section) => {
-                const key = SECTION_SETTING[section] as BooleanSetting;
-                return (
-                  <SettingRow
-                    title={t(SECTION_ROWS[section].title)}
-                    desc={t(SECTION_ROWS[section].desc)}
-                    checked={settings[key]}
-                    onChange={() => toggle(key)}
-                    className="bg-transparent pl-1 hover:bg-transparent"
-                  />
-                );
-              }}
-            </SectionOrderList>
+            <div ref={sectionsRef} data-setting>
+              <SectionOrderList
+                order={settings.sectionOrder}
+                onReorder={reorderSections}
+                moveLabel={(section) => t('display_move_section').replace('{0}', t(SECTION_ROWS[section].title))}
+              >
+                {(section) => {
+                  const key = SECTION_SETTING[section] as BooleanSetting;
+                  return (
+                    <SettingRow
+                      title={t(SECTION_ROWS[section].title)}
+                      desc={t(SECTION_ROWS[section].desc)}
+                      checked={settings[key]}
+                      onChange={(source) => toggle(key, source)}
+                      className="bg-transparent pl-1 hover:bg-transparent"
+                    />
+                  );
+                }}
+              </SectionOrderList>
+            </div>
             <div className="space-y-4">
               {TOGGLES.map((opt) => (
                 <SettingRow
@@ -907,7 +929,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                   title={t(opt.title)}
                   desc={t(opt.desc)}
                   checked={settings[opt.key]}
-                  onChange={() => toggle(opt.key)}
+                  onChange={(source) => toggle(opt.key, source)}
                 />
               ))}
               <RangeSetting
@@ -916,8 +938,10 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                 value={settings.gameIconSize}
                 unit="px"
                 {...GAME_ICON_SIZES}
-                onChange={(gameIconSize) => updateSettings({ gameIconSize })}
-                onCommit={(size) => showPeek(`${t('game_icon_size_title')}: ${size}px`)}
+                onChange={(gameIconSize, source) => {
+                  updateSettings({ gameIconSize });
+                  showPeek(`${t('game_icon_size_title')}: ${gameIconSize}px`, source);
+                }}
               />
               <RangeSetting
                 title={t('split_icon_size_title')}
@@ -925,8 +949,10 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
                 value={settings.splitIconSize}
                 unit="px"
                 {...SPLIT_ICON_SIZES}
-                onChange={(splitIconSize) => updateSettings({ splitIconSize })}
-                onCommit={(size) => showPeek(`${t('split_icon_size_title')}: ${size}px`)}
+                onChange={(splitIconSize, source) => {
+                  updateSettings({ splitIconSize });
+                  showPeek(`${t('split_icon_size_title')}: ${splitIconSize}px`, source);
+                }}
               />
               <RefreshRatePicker value={settings.refreshRate} onChange={(refreshRate) => updateSettings({ refreshRate })} />
             </div>

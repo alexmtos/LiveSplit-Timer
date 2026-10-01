@@ -39,6 +39,33 @@ body {
   text-shadow: none;
 }
 
+/*
+ * While a change shows on the overlay, only the setting being changed stays on
+ * screen, in place and usable, like a TV's on-screen control. A visible
+ * descendant of a hidden element still shows; the shadow frames it without
+ * moving anything.
+ */
+[role='dialog'][data-peeking] {
+  visibility: hidden;
+}
+
+/* Without this, anything with `transition-all` would fade out instead of hiding at once. */
+[role='dialog'][data-peeking] :not([data-peek], [data-peek] *) {
+  transition-property: none;
+}
+
+[role='dialog'][data-peeking] [data-peek] {
+  visibility: visible;
+  /* Room for the frame below when it is scrolled into view. */
+  scroll-margin: 16px;
+  border-radius: 0.5rem;
+  background-color: var(--bg-main);
+  box-shadow:
+    0 0 0 8px var(--bg-main),
+    0 0 0 9px rgba(var(--theme-accent-rgb), 0.6),
+    0 16px 48px rgba(0, 0, 0, 0.7);
+}
+
 /* The splits table scrolls without a scrollbar; highlights at its edges show there is more. */
 .splits-scroll {
   scrollbar-width: none;
