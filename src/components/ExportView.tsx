@@ -8,12 +8,23 @@ import { Predictions } from './Predictions';
 import { SettingsButtonProvider } from './SettingsButton';
 import { SplitsTable } from './SplitsTable';
 import { TimerDisplay } from './TimerDisplay';
+import { SECTION_SETTING, type OverlaySection } from '@/types';
 
 const NO_SETTINGS_BUTTON = { placement: 'none' as const, open: () => {} };
 
 /** Width of the exported image, in CSS pixels. */
 export const EXPORT_WIDTH = 500;
 const EXPORT_GRAPH_HEIGHT = 300;
+
+/** What each section looks like in the image; the controls are left out. */
+const EXPORTED: Record<OverlaySection, React.ReactNode> = {
+  header: <Header />,
+  timer: <TimerDisplay />,
+  predictions: <Predictions />,
+  graph: <ComparisonGraph fixedHeight={EXPORT_GRAPH_HEIGHT} />,
+  controls: null,
+  splits: <SplitsTable printable />,
+};
 /** Frames to wait so the graph has measured itself and drawn before the capture. */
 const SETTLE_FRAMES = 6;
 
@@ -81,11 +92,11 @@ export function ExportViewProvider({ children }: { children: React.ReactNode }) 
         <div className="pointer-events-none fixed left-[-10000px] top-0" aria-hidden data-export-ignore>
           <SettingsButtonProvider value={NO_SETTINGS_BUTTON}>
             <div ref={ref} className="flex flex-col bg-[var(--bg-main)] font-sans text-white" style={{ width: EXPORT_WIDTH }}>
-              {settings.showHeader && <Header />}
-              {settings.showTimer && <TimerDisplay />}
-              {settings.showPredictions && <Predictions />}
-              {settings.showGraph && <ComparisonGraph fixedHeight={EXPORT_GRAPH_HEIGHT} />}
-              {settings.showTable && <SplitsTable printable />}
+              {settings.sectionOrder
+                .filter((section) => settings[SECTION_SETTING[section]])
+                .map((section) => (
+                  <React.Fragment key={section}>{EXPORTED[section]}</React.Fragment>
+                ))}
             </div>
           </SettingsButtonProvider>
         </div>

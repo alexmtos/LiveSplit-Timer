@@ -74,7 +74,15 @@ A engrenagem, que abre o painel, fica na seção do topo da página:
 | Controles | À direita do botão de reset, com espaço próprio. Na página `/controls`, numa faixa acima dos botões |
 | Gráfico ou tabela de splits | No canto superior direito, sobre a seção, que não se desloca |
 
-As seções aparecem nesta ordem: cabeçalho, timer, previsões, gráfico, controles e tabela de splits.
+Por padrão, as seções aparecem nesta ordem: cabeçalho, timer, previsões, gráfico, controles e tabela de splits.
+
+### Mudar a ordem das seções
+
+1. Abra as configurações pela engrenagem.
+2. Na seção **Exibição**, arraste o bloco da seção para a nova posição. Com o mouse, arraste por qualquer parte do bloco; na tela de toque, pela alça à esquerda.
+3. Solte o bloco. A página muda na hora e a ordem fica salva.
+
+Com o teclado, vá até a alça do bloco com Tab e use as setas para cima e para baixo. Para uma fonte do OBS com outra ordem, use o parâmetro `order` na URL.
 
 ### Redefinir configurações
 
@@ -109,6 +117,7 @@ http://localhost:3000/?host=192.168.0.10&theme=matrix&transparent=1&stream=1&hid
 | `hotkeys` | booleano | Liga ou desliga os atalhos de teclado. |
 | `hide` | Lista de seções | Esconde as seções listadas. |
 | `show` | Lista de seções | Mostra as seções listadas. |
+| `order` | Lista de seções | Ordem das seções, de cima para baixo. As que você não listar vêm depois, na ordem padrão. Por exemplo, `order=timer,splits`. |
 
 - **Booleanos:** `1`, `true`, `yes`, `on`, `sim` ou o parâmetro sem valor ligam a opção; `0`, `false`, `no`, `off`, `nao` desligam.
 - **Seções:** `header`, `timer`, `predictions`, `graph`, `controls`, `splits` (`table` também é aceito), separadas por vírgula.

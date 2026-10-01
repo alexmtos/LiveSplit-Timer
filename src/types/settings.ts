@@ -10,6 +10,8 @@ export interface Settings {
   showControls: boolean;
   showGraph: boolean;
   showTable: boolean;
+  /** Order of the sections on the page, top to bottom: every section exactly once, shown or not. */
+  sectionOrder: OverlaySection[];
   alwaysExpandedSplits: boolean;
   hotkeysEnabled: boolean;
   /** Hides the settings button unless the pointer is over it (for stream overlays). */
@@ -26,7 +28,7 @@ export interface Settings {
   refreshRate: number;
 }
 
-/** Sections of the overlay; each one can be hidden or served alone on its own route. */
+/** Sections of the overlay, in their default order; each one can be hidden, moved or served alone on its own route. */
 export const OVERLAY_SECTIONS = ['header', 'timer', 'predictions', 'graph', 'controls', 'splits'] as const;
 export type OverlaySection = (typeof OVERLAY_SECTIONS)[number];
 

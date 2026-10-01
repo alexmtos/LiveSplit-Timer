@@ -14,6 +14,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showControls: true,
   showGraph: true,
   showTable: true,
+  sectionOrder: [...OVERLAY_SECTIONS],
   alwaysExpandedSplits: false,
   hotkeysEnabled: true,
   streamMode: false,
@@ -36,6 +37,24 @@ function toPercent(value: unknown): number | null {
   const number = typeof value === 'string' && value.trim() !== '' ? Number(value) : value;
   return typeof number === 'number' && Number.isFinite(number) && number >= 0 && number <= 100 ? Math.round(number) : null;
 }
+
+const isSection = (value: unknown): value is OverlaySection =>
+  typeof value === 'string' && (OVERLAY_SECTIONS as readonly string[]).includes(value);
+
+/**
+ * A complete section order: the valid sections of `value`, once each and in
+ * its order, then the missing ones in the default order. Null when `value`
+ * names no section.
+ */
+export function toSectionOrder(value: unknown): OverlaySection[] | null {
+  if (!Array.isArray(value)) return null;
+  const listed = [...new Set(value.filter(isSection))];
+  if (listed.length === 0) return null;
+  return [...listed, ...OVERLAY_SECTIONS.filter((section) => !listed.includes(section))];
+}
+
+export const isDefaultSectionOrder = (order: readonly OverlaySection[]) =>
+  order.every((section, index) => section === OVERLAY_SECTIONS[index]);
 
 type BooleanKey = {
   [K in keyof Settings]: Settings[K] extends boolean ? K : never;
@@ -99,6 +118,7 @@ export function sanitizeSettings(raw: unknown, fallbackLanguage: Language = DEFA
     },
     transparency: toPercent(input.transparency) ?? DEFAULT_SETTINGS.transparency,
     refreshRate: toRefreshRate(input.refreshRate) ?? DEFAULT_SETTINGS.refreshRate,
+    sectionOrder: toSectionOrder(input.sectionOrder) ?? [...OVERLAY_SECTIONS],
   };
   for (const key of BOOLEAN_KEYS) {
     if (typeof input[key] === 'boolean') settings[key] = input[key] as boolean;
@@ -120,7 +140,7 @@ function parseSections(value: string | null): OverlaySection[] {
     .split(',')
     .map((part) => part.trim().toLowerCase())
     .map((part) => (part === 'table' ? 'splits' : part))
-    .filter((part): part is OverlaySection => (OVERLAY_SECTIONS as readonly string[]).includes(part));
+    .filter(isSection);
 }
 
 /**
@@ -128,7 +148,9 @@ function parseSections(value: string | null): OverlaySection[] {
  * saved, so each OBS browser source can have its own configuration:
  *
  *   ?host=192.168.0.10&port=15721&theme=matrix&lang=en-US&transparent=1&transparency=60
- *   &stream=1&hide=controls,graph&expanded=1&hotkeys=0
+ *   &stream=1&hide=controls,graph&expanded=1&hotkeys=0&order=timer,splits
+ *
+ * `order` lists sections from the top; the ones it leaves out follow in the default order.
  */
 export function parseUrlOverrides(search: string, currentWsUrl: string): Partial<Settings> {
   const params = new URLSearchParams(search);
@@ -176,6 +198,9 @@ export function parseUrlOverrides(search: string, currentWsUrl: string): Partial
     if (value !== undefined) overrides[key] = value;
   }
 
+  const order = toSectionOrder(parseSections(params.get('order')));
+  if (order) overrides.sectionOrder = order;
+
   for (const section of parseSections(params.get('show'))) overrides[SECTION_SETTING[section] as BooleanKey] = true;
   for (const section of parseSections(params.get('hide'))) overrides[SECTION_SETTING[section] as BooleanKey] = false;
 
@@ -214,6 +239,7 @@ export function buildOverlayUrl(
   if (path === '/' || path === '') {
     const hidden = OVERLAY_SECTIONS.filter((section) => !settings[SECTION_SETTING[section]]);
     if (hidden.length > 0) params.set('hide', hidden.join(','));
+    if (!isDefaultSectionOrder(settings.sectionOrder)) params.set('order', settings.sectionOrder.join(','));
   }
   const query = params.toString().replace(/%2C/g, ',');
   const page = path === '/' || path === '' ? '/' : trailingSlash ? `${path}/` : path;

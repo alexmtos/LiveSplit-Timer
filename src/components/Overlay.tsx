@@ -31,8 +31,6 @@ const SECTIONS: Record<OverlaySection, (fill: boolean) => React.ReactNode> = {
 /** Delay before opening the settings when LiveSplit is unreachable after the page loads. */
 const AUTO_OPEN_MS = 3_000;
 
-const ORDER: OverlaySection[] = ['header', 'timer', 'predictions', 'graph', 'controls', 'splits'];
-
 /**
  * The overlay page. With `only`, renders a single section that fills the page
  * (e.g. `/timer` for its own OBS browser source) regardless of the visibility settings.
@@ -69,9 +67,9 @@ export function Overlay({ only }: { only?: OverlaySection }) {
 
   useLiveSplitHotkeys(settings.hotkeysEnabled && !isSettingsOpen);
 
-  const sections = only ? [only] : ORDER.filter((section) => settings[SECTION_SETTING[section]]);
+  const sections = only ? [only] : settings.sectionOrder.filter((section) => settings[SECTION_SETTING[section]]);
   // The settings button sits in the section at the top of the page.
-  const placement = settingsButtonPlacement(only ?? ORDER.find((section) => settings[SECTION_SETTING[section]]));
+  const placement = settingsButtonPlacement(only ?? settings.sectionOrder.find((section) => settings[SECTION_SETTING[section]]));
   const settingsButton = useMemo(() => ({ placement, open: openSettings }), [placement, openSettings]);
 
   return (

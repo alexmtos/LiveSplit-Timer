@@ -3,6 +3,7 @@ import { accentForeground } from '@/lib/themes';
 import { buildWsUrl, connectionUrl, isBlockedByMixedContent, parseWsUrl } from '@/lib/connection';
 import { csvField, safeFileName, toCsv } from '@/lib/csv';
 import { DEFAULT_SETTINGS, buildOverlayUrl, detectLanguage, parseUrlOverrides, sanitizeSettings } from '@/lib/settings';
+import type { Settings } from '@/types';
 
 describe('connection URLs', () => {
   it('builds ws URLs from host and port', () => {
@@ -71,6 +72,8 @@ describe('settings', () => {
     expect(sanitizeSettings({ transparency: -5 }).transparency).toBe(100);
     expect(sanitizeSettings({ refreshRate: 30 }).refreshRate).toBe(30);
     expect(sanitizeSettings({ refreshRate: 1000 }).refreshRate).toBe(60);
+    expect(sanitizeSettings({ sectionOrder: ['splits', 'graph', 'splits', 'x', 3] }).sectionOrder).toEqual(['splits', 'graph', 'header', 'timer', 'predictions', 'controls']);
+    expect(sanitizeSettings({ sectionOrder: 'splits' }).sectionOrder).toEqual(DEFAULT_SETTINGS.sectionOrder);
   });
 });
 
@@ -139,9 +142,24 @@ describe('URL overrides', () => {
     expect(buildOverlayUrl('https://a.github.io', '/', DEFAULT_SETTINGS, options)).toBe('https://a.github.io/LiveSplit-Timer/?lang=pt-BR');
   });
 
-  it('omits section visibility for single-section pages', () => {
-    const url = buildOverlayUrl('http://x', '/timer', { ...DEFAULT_SETTINGS, showTimer: false });
+  it('omits section visibility and order for single-section pages', () => {
+    const url = buildOverlayUrl('http://x', '/timer', { ...DEFAULT_SETTINGS, showTimer: false, sectionOrder: ['splits', 'header', 'timer', 'predictions', 'graph', 'controls'] });
     expect(url).toBe('http://x/timer?lang=pt-BR');
+  });
+
+  it('reads the section order, completing it with the default order', () => {
+    expect(parseUrlOverrides('?order=table,timer,timer,nope', saved)).toEqual({
+      sectionOrder: ['splits', 'timer', 'header', 'predictions', 'graph', 'controls'],
+    });
+    expect(parseUrlOverrides('?order=nope', saved)).toEqual({});
+  });
+
+  it('round-trips a moved section and leaves the default order out', () => {
+    const settings = { ...DEFAULT_SETTINGS, sectionOrder: ['timer', 'header', 'predictions', 'graph', 'controls', 'splits'] as Settings['sectionOrder'] };
+    const url = buildOverlayUrl('http://x', '/', settings);
+    expect(url).toBe('http://x/?lang=pt-BR&order=timer,header,predictions,graph,controls,splits');
+    expect({ ...DEFAULT_SETTINGS, ...parseUrlOverrides(new URL(url).search, DEFAULT_SETTINGS.wsUrl) }).toEqual(settings);
+    expect(buildOverlayUrl('http://x', '/', DEFAULT_SETTINGS)).toBe('http://x/?lang=pt-BR');
   });
 });
 

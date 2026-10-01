@@ -10,8 +10,9 @@ import { buildWsUrl, isBlockedByMixedContent, parseWsUrl, testConnection, type T
 import { buildOverlayUrl } from '@/lib/settings';
 import { LANGUAGE_OPTIONS, type TranslationKey } from '@/lib/translations';
 import { cn } from '@/lib/utils';
-import { OVERLAY_SECTIONS, type ConnectionDiagnostic, type Settings } from '@/types';
+import { OVERLAY_SECTIONS, SECTION_SETTING, type ConnectionDiagnostic, type OverlaySection, type Settings } from '@/types';
 import { REFRESH_RATES } from '@/lib/ticker';
+import { SectionOrderList } from './SectionOrderList';
 import { ThemeSelector } from './ThemeSelector';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
@@ -33,13 +34,17 @@ type BooleanSetting =
   | 'hotkeysEnabled'
   | 'streamMode';
 
+/** The switch of each page section, shown as a block that can be dragged to reorder the page. */
+const SECTION_ROWS: Record<OverlaySection, { title: TranslationKey; desc: TranslationKey }> = {
+  header: { title: 'display_header', desc: 'display_header_desc' },
+  timer: { title: 'display_timer', desc: 'display_timer_desc' },
+  predictions: { title: 'display_predictions', desc: 'display_predictions_desc' },
+  controls: { title: 'display_controls', desc: 'display_controls_desc' },
+  graph: { title: 'display_graph', desc: 'display_graph_desc' },
+  splits: { title: 'display_table', desc: 'display_table_desc' },
+};
+
 const TOGGLES: { key: BooleanSetting; title: TranslationKey; desc: TranslationKey }[] = [
-  { key: 'showHeader', title: 'display_header', desc: 'display_header_desc' },
-  { key: 'showTimer', title: 'display_timer', desc: 'display_timer_desc' },
-  { key: 'showPredictions', title: 'display_predictions', desc: 'display_predictions_desc' },
-  { key: 'showControls', title: 'display_controls', desc: 'display_controls_desc' },
-  { key: 'showGraph', title: 'display_graph', desc: 'display_graph_desc' },
-  { key: 'showTable', title: 'display_table', desc: 'display_table_desc' },
   { key: 'alwaysExpandedSplits', title: 'display_expanded', desc: 'display_expanded_desc' },
   { key: 'hotkeysEnabled', title: 'display_hotkeys', desc: 'display_hotkeys_desc' },
   { key: 'streamMode', title: 'display_stream', desc: 'display_stream_desc' },
@@ -202,15 +207,22 @@ function SettingRow({
   desc,
   checked,
   onChange,
+  className,
 }: {
   title: string;
   desc: string;
   checked: boolean;
   onChange: () => void;
+  className?: string;
 }) {
   const id = useId();
   return (
-    <div className="flex items-center justify-between gap-5 rounded-lg border border-transparent bg-white/[0.03] p-3 transition-all hover:bg-white/5">
+    <div
+      className={cn(
+        'flex items-center justify-between gap-5 rounded-lg border border-transparent bg-white/[0.03] p-3 transition-all hover:bg-white/5',
+        className,
+      )}
+    >
       <div>
         <h4 id={id} className="mb-1 text-sm font-semibold text-white">
           {title}
@@ -733,6 +745,12 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
     if (messages) showPeek(t(messages[enabled ? 0 : 1]));
   };
 
+  const reorderSections = (sectionOrder: OverlaySection[], byKeyboard: boolean) => {
+    updateSettings({ sectionOrder });
+    // From the keyboard the panel stays put, so the next arrow press still reaches the block.
+    if (!byKeyboard) showPeek(t('notification_order_changed'));
+  };
+
   const toggleTransparent = () => {
     const enabled = !settings.chromaKey.enabled;
     updateSettings({ chromaKey: { enabled } });
@@ -843,6 +861,25 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
 
           <section className={SECTION}>
             <h3 className="text-base font-semibold text-accent">{t('display_title')}</h3>
+            <p className="text-[11px] leading-relaxed text-[var(--text-dim)]">{t('display_order_hint')}</p>
+            <SectionOrderList
+              order={settings.sectionOrder}
+              onReorder={reorderSections}
+              moveLabel={(section) => t('display_move_section').replace('{0}', t(SECTION_ROWS[section].title))}
+            >
+              {(section) => {
+                const key = SECTION_SETTING[section] as BooleanSetting;
+                return (
+                  <SettingRow
+                    title={t(SECTION_ROWS[section].title)}
+                    desc={t(SECTION_ROWS[section].desc)}
+                    checked={settings[key]}
+                    onChange={() => toggle(key)}
+                    className="bg-transparent pl-1 hover:bg-transparent"
+                  />
+                );
+              }}
+            </SectionOrderList>
             <div className="space-y-4">
               {TOGGLES.map((opt) => (
                 <SettingRow
