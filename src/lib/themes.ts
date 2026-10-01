@@ -26,6 +26,14 @@ export function getTheme(id: string): ThemeColors {
   return THEME_COLORS[id] ?? THEME_COLORS.default;
 }
 
+/** `#rrggbb` with an alpha from 0 to 1, as `rgba(...)`. */
+export function withAlpha(hex: string, alpha: number): string {
+  const match = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!match) return hex;
+  const [r, g, b] = match.slice(1).map((part) => parseInt(part, 16));
+  return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+}
+
 /** Text colour that stays readable on top of the accent colour (WCAG relative luminance). */
 export function accentForeground(accentRgb: string): string {
   const [r, g, b] = accentRgb.split(',').map((c) => {

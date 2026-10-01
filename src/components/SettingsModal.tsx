@@ -491,6 +491,44 @@ const TOGGLE_MESSAGES: Partial<Record<BooleanSetting, [on: TranslationKey, off: 
   showTable: ['notification_table_enabled', 'notification_table_disabled'],
 };
 
+/** How see-through the background is in transparent mode; the panel steps aside once you let go. */
+function TransparencySlider({
+  value,
+  onChange,
+  onCommit,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+  onCommit: (value: number) => void;
+}) {
+  const { t } = useI18n();
+  const id = useId();
+  const commit = (event: React.SyntheticEvent<HTMLInputElement>) => onCommit(Number(event.currentTarget.value));
+  return (
+    <div className="rounded-lg bg-white/[0.03] p-3">
+      <div className="mb-1 flex items-center justify-between gap-4">
+        <label htmlFor={id} className="text-sm font-semibold text-white">
+          {t('transparency_title')}
+        </label>
+        <span className="font-mono text-sm text-accent">{value}%</span>
+      </div>
+      <p className="mb-3 text-xs text-[var(--text-dim)]">{t('transparency_desc')}</p>
+      <input
+        id={id}
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={value}
+        onChange={(event) => onChange(Number(event.currentTarget.value))}
+        onPointerUp={commit}
+        onKeyUp={commit}
+        className="w-full cursor-pointer [accent-color:var(--theme-accent)]"
+      />
+    </div>
+  );
+}
+
 /** Shown while disconnected: what to check, as before. */
 function ConnectionProblem() {
   const { status, unauthorized } = useLiveSplit();
@@ -762,6 +800,13 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
               checked={settings.chromaKey.enabled}
               onChange={toggleTransparent}
             />
+            {settings.chromaKey.enabled && (
+              <TransparencySlider
+                value={settings.transparency}
+                onChange={(transparency) => updateSettings({ transparency })}
+                onCommit={(transparency) => showPeek(`${t('transparency_title')}: ${transparency}%`)}
+              />
+            )}
           </section>
 
           <section className={SECTION}>

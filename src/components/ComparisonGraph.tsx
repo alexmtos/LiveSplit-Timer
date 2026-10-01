@@ -5,7 +5,7 @@ import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useSplitSelection } from '@/contexts/SelectionContext';
 import { useI18n } from '@/hooks/useI18n';
 import { AHEAD_HEX, BEHIND_HEX, STATUS_HEX } from '@/lib/colors';
-import { buildGraphPoints, graphRange, labelledPoints, withLivePoint, type GraphPoint } from '@/lib/graph';
+import { buildGraphPoints, labelledPoints, liveRange, rawLiveDelta, withLivePoint, type GraphPoint } from '@/lib/graph';
 import { extrapolateTime, liveDelta } from '@/lib/run';
 import { formatDelta } from '@/lib/time';
 import { cn } from '@/lib/utils';
@@ -32,7 +32,14 @@ interface Layout {
 const signColor = (delta: number | null, fallback = GREY) =>
   delta === null ? fallback : delta < 0 ? AHEAD_HEX : delta > 0 ? BEHIND_HEX : fallback;
 
-function drawGraph(canvas: HTMLCanvasElement, width: number, height: number, points: GraphPoint[], selected: number | null): Layout {
+function drawGraph(
+  canvas: HTMLCanvasElement,
+  width: number,
+  height: number,
+  points: GraphPoint[],
+  selected: number | null,
+  range: number,
+): Layout {
   const dpr = window.devicePixelRatio || 1;
   if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
     canvas.width = Math.round(width * dpr);
@@ -44,7 +51,6 @@ function drawGraph(canvas: HTMLCanvasElement, width: number, height: number, poi
 
   const graphHeight = height - PADDING_TOP - FOOTER - 5;
   const graphBottom = PADDING_TOP + graphHeight;
-  const range = graphRange(points);
   const y = (delta: number) => PADDING_TOP + graphHeight * (1 - Math.max(0, Math.min(1, (delta + range) / (2 * range))));
   const step = points.length <= 1 ? 0 : (width - PADDING_SIDES * 2) / (points.length - 1);
   const x = (index: number) => PADDING_SIDES + index * step;
@@ -278,21 +284,23 @@ export function ComparisonGraph({ fill = false, fixedHeight }: { fill?: boolean;
     if (!canvas || !state || size.width === 0 || size.height === 0) return;
     let frame = 0;
     let drawn: string | undefined;
-    const baseRange = graphRange(points);
     const plotHeight = Math.max(1, size.height - PADDING_TOP - FOOTER - 5);
     const render = () => {
       const currentTime = anchor ? extrapolateTime(anchor, timingMethod, performance.now()) : null;
-      const live = liveDelta(state, currentTime, comparison, timingMethod);
+      // The live point follows the run from the start; LiveSplit's own live delta
+      // only decides whether it may stretch the scale.
+      const live = rawLiveDelta(state, currentTime, comparison, timingMethod);
+      const shown = liveDelta(state, currentTime, comparison, timingMethod) !== null;
+      const range = liveRange(points, live, shown);
       // Redraw only when the picture changes: the live point moved half a pixel,
       // the scale changed enough to move the other points, or its label changed.
-      let key = 'static';
-      if (live !== null) {
-        const range = Math.max(baseRange, Math.abs(live) * 1.25);
-        key = `${Math.round((live / (2 * range)) * plotHeight * 2)}|${Math.round(Math.log(range) * 500)}|${formatDelta(live)}`;
-      }
+      const key =
+        live === null
+          ? 'static'
+          : `${Math.round((Math.max(-range, Math.min(range, live)) / (2 * range)) * plotHeight * 2)}|${Math.round(Math.log(range) * 500)}|${formatDelta(live)}`;
       if (key !== drawn) {
         drawn = key;
-        layoutRef.current = drawGraph(canvas, size.width, size.height, withLivePoint(points, state, live), selected);
+        layoutRef.current = drawGraph(canvas, size.width, size.height, withLivePoint(points, state, live), selected, range);
       }
       if (state.timerState === 'Running') frame = requestAnimationFrame(render);
     };

@@ -55,7 +55,7 @@ Depois, acesse [http://localhost:3000](http://localhost:3000).
 
 O nome do jogo e os splits aparecem assim que o app se conecta ao LiveSplit.
 
-Se o LiveSplit estiver em outro computador, clique na engrenagem no canto superior direito, informe o IP e a porta e clique em **Testar & Salvar**.
+Se o LiveSplit estiver em outro computador, clique na engrenagem à direita do timer, informe o IP e a porta e clique em **Testar & Salvar**.
 
 ## Próximos passos
 

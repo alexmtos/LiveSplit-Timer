@@ -5,6 +5,7 @@
 :root {
   --bg-main: #050505;
   --page-bg: var(--bg-main);
+  --window-bg: var(--bg-main);
   --text-dim: #888;
   --theme-accent: #00a2ff;
   --theme-accent-rgb: 0, 162, 255;

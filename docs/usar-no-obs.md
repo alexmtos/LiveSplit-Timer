@@ -23,7 +23,9 @@ A URL copiada já inclui o modo transparente, o modo stream, as seções escondi
 
 ## Deixar o fundo transparente
 
-Ative **Modo Transparente** nas configurações ou adicione `transparent=1` à URL. O OBS passa a mostrar a cena por trás do overlay. O texto tem uma sombra escura para continuar legível, e o gráfico e a tabela de splits mantêm um fundo escuro semitransparente.
+Ative **Modo Transparente** nas configurações ou adicione `transparent=1` à URL. O OBS passa a mostrar a cena por trás do overlay.
+
+Para manter um pouco do fundo do tema, ajuste **Transparência do fundo**, que aparece logo abaixo da opção, ou adicione `transparency=<0 a 100>` à URL. Em 100% o fundo some por completo. O texto tem uma sombra escura para continuar legível, e o gráfico e a tabela de splits mantêm um fundo escuro semitransparente.
 
 ## Esconder a engrenagem na live
 
@@ -48,7 +50,7 @@ Para gerar a URL de uma página, escolha-a na lista da seção **URL para o OBS*
 ## Alterar configurações de dentro do OBS
 
 1. Clique com o botão direito na fonte de navegador e escolha **Interagir**.
-2. Passe o cursor no canto superior direito e clique na engrenagem.
+2. Passe o cursor à direita do timer (ou, sem o timer, no canto superior direito) e clique na engrenagem.
 
 As alterações feitas assim ficam salvas e valem para todas as fontes que não definem a mesma opção na URL.
 

@@ -27,8 +27,9 @@ export function ThemeSelector({ value, onSelect }: { value: string; onSelect: (t
   return (
     <div className="flex flex-col">
       <div
-        className="relative flex h-20 items-center justify-between overflow-hidden rounded-lg border-2 border-white/10"
-        style={{ background: diagonal(colors.bg, colors.accent) }}
+        // The gradient stops at the padding box so the border is one solid accent colour.
+        className="relative flex h-20 items-center justify-between overflow-hidden rounded-lg border-2 bg-clip-padding"
+        style={{ backgroundImage: diagonal(colors.bg, colors.accent), borderColor: colors.accent }}
       >
         <button
           type="button"
@@ -75,12 +76,12 @@ export function ThemeSelector({ value, onSelect }: { value: string; onSelect: (t
             aria-pressed={current === id}
             onClick={() => onSelect(id)}
             className={cn(
-              'flex h-[60px] items-center justify-center rounded-lg border-2 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]',
+              'flex h-[60px] items-center justify-center rounded-lg border-2 bg-clip-padding transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.4)]',
               current === id
                 ? 'border-accent shadow-[0_0_15px_rgba(var(--theme-accent-rgb),0.3)]'
-                : 'border-white/10 hover:border-white/30',
+                : 'border-[#2a2a2a] hover:border-[#555]',
             )}
-            style={{ background: diagonal(THEME_COLORS[id].bg, THEME_COLORS[id].accent) }}
+            style={{ backgroundImage: diagonal(THEME_COLORS[id].bg, THEME_COLORS[id].accent) }}
           >
             <span className="text-sm font-bold text-white [text-shadow:0_2px_4px_rgba(0,0,0,0.6)]">{name(id)}</span>
           </button>

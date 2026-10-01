@@ -6,10 +6,14 @@ import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useI18n } from '@/hooks/useI18n';
 import { PERSONAL_BEST, pickTime } from '@/lib/run';
 import { formatTime } from '@/lib/time';
+import { cn } from '@/lib/utils';
+import { useSettingsButtonPlacement } from './SettingsButton';
 
 export function Header() {
   const { state, worldRecord, timingMethod, comparison } = useLiveSplit();
   const { t } = useI18n();
+  // Room for the settings button when it sits in the window's corner, over the header.
+  const buttonInCorner = useSettingsButtonPlacement() === 'window';
 
   const run = state?.run;
   const lastSegment = run?.segments[run.segments.length - 1];
@@ -48,7 +52,7 @@ export function Header() {
 
   return (
     <header className="relative flex min-h-[70px] shrink-0 flex-col justify-center gap-1 border-b border-white/10 px-4 py-3">
-      <div className="flex min-w-0 items-center gap-3 pr-10">
+      <div className={cn('flex min-w-0 items-center gap-3', buttonInCorner && 'pr-10')}>
         {run?.gameIcon && (
           // Data URL sent by LiveSplit; next/image adds nothing here.
           // eslint-disable-next-line @next/next/no-img-element
