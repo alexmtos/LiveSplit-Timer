@@ -16,7 +16,7 @@ Quando uma opção aparece nos dois lugares, o valor da URL tem prioridade. Se v
 
 Se o app não conseguir se conectar ao LiveSplit até 3 segundos depois de abrir a página, o painel abre sozinho, com uma lista do que verificar. Isso não acontece no modo stream nem nas [páginas de uma seção](#páginas), para o painel nunca aparecer na live.
 
-Ao mudar o tema ou uma opção que muda o overlay, o resto do painel some e só a opção que você está ajustando fica na tela, no mesmo lugar e ainda utilizável, como os controles de brilho de uma TV. Assim você vê o resultado no overlay e pode continuar ajustando. O painel volta 6 segundos depois da última mudança; para trazê-lo antes, clique fora da opção ou pressione Esc. Ao exportar, o painel inteiro sai da frente e mostra uma mensagem com o resultado.
+Ao mudar o tema ou uma opção que muda o overlay, o resto do painel some e a opção que você está ajustando desliza para a parte de baixo da tela, ainda utilizável, como os controles de brilho de uma TV. Assim você vê o resultado no overlay e pode continuar ajustando. 4 segundos depois da última mudança, a opção desliza de volta e o painel reaparece; para trazê-lo antes, clique fora da opção ou pressione Esc. Ao exportar, o painel inteiro sai da frente e mostra uma mensagem com o resultado.
 
 ### Conexão
 

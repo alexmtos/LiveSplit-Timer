@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Copy, FileText, Image as ImageIcon, Link2, Upload } from 'lucide-react';
 import { useLiveSplit } from '@/contexts/LiveSplitContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -19,13 +19,56 @@ const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? '';
 /** Settings section, separated from the next one by a line. */
 const SECTION = 'relative space-y-4 border-b border-white/10 py-6 last:border-b-0 last:pb-0';
 /** How long the panel stays aside after the last change before coming back. */
-const PEEK_MS = 6_000;
+const PEEK_MS = 4_000;
+/** How long the setting takes to slide to the bottom of the screen, and back. */
+const SLIDE_MS = 300;
+/** Space left under the setting at the bottom of the screen (room for its frame). */
+const SLIDE_GAP = 24;
+
+/**
+ * Pins a setting where it is on screen (fixed, so the panel's scroll area no
+ * longer clips it) and marks it as the one left on screen. Returns how far it
+ * must slide down to reach the bottom of the screen, and how to put it back.
+ */
+function pinSetting(element: HTMLElement) {
+  const scroller = element.closest<HTMLElement>('[data-settings-scroll]');
+  const scrollTop = scroller?.scrollTop ?? 0;
+  const rect = element.getBoundingClientRect();
+  element.setAttribute('data-peek', '');
+  Object.assign(element.style, {
+    position: 'fixed',
+    top: `${rect.top}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    margin: '0',
+    zIndex: '60',
+  });
+  const unpin = () => {
+    element.removeAttribute('data-peek');
+    for (const property of ['position', 'top', 'left', 'width', 'margin', 'z-index', 'transform', 'transition']) {
+      element.style.removeProperty(property);
+    }
+    // Pinned, it left a gap that may have scrolled the panel; put it back as it was.
+    if (scroller) scroller.scrollTop = scrollTop;
+  };
+  return { slideBy: window.innerHeight - SLIDE_GAP - rect.bottom, unpin };
+}
+
+/** Slides a pinned setting `by` pixels down from its place in the panel (0 slides it back). */
+function slideSetting(element: HTMLElement, by: number) {
+  element.style.transition = `transform ${SLIDE_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+  // Commit the starting point, so the first slide starts from the setting's place in the panel.
+  void element.offsetHeight;
+  element.style.transform = by === 0 ? '' : `translateY(${by}px)`;
+}
 
 interface Peek {
   /** Shown when no setting stays on screen. */
   message: string;
   /** The setting being changed, left on screen and usable while the rest of the panel is hidden. */
   control: HTMLElement | null;
+  /** The setting is sliding back into the panel, which shows again once it is there. */
+  leaving: boolean;
 }
 
 type BooleanSetting =
@@ -708,6 +751,19 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
   const peekTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(peekTimer.current), []);
 
+  /** Brings the panel back; a setting left on screen slides back into place first. */
+  const endPeek = useCallback(() => {
+    const current = peekRef.current;
+    if (current?.leaving) return;
+    clearTimeout(peekTimer.current);
+    if (current?.control) {
+      setPeek({ ...current, leaving: true });
+      peekTimer.current = setTimeout(() => setPeek(null), SLIDE_MS);
+    } else {
+      setPeek(null);
+    }
+  }, []);
+
   useEffect(() => {
     const previousFocus = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
@@ -715,8 +771,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
       if (event.key !== 'Escape') return;
       // Escape first brings the panel back, then closes it.
       if (peekRef.current) {
-        clearTimeout(peekTimer.current);
-        setPeek(null);
+        endPeek();
       } else {
         onCloseRef.current();
       }
@@ -726,17 +781,22 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
       window.removeEventListener('keydown', onKeyDown);
       previousFocus?.focus?.();
     };
-  }, []);
+  }, [endPeek]);
 
   // The setting left on screen; the stylesheet hides everything else in the panel.
+  // It slides to the bottom of the screen, then back before the panel shows.
   const peekControl = peek?.control ?? null;
-  useEffect(() => {
+  const leaving = peek?.leaving ?? false;
+  const slideBy = useRef(0);
+  useLayoutEffect(() => {
     if (!peekControl) return;
-    peekControl.setAttribute('data-peek', '');
-    // Only what is inside the panel's scroll area shows: bring all of the setting in.
-    peekControl.scrollIntoView({ block: 'nearest' });
-    return () => peekControl.removeAttribute('data-peek');
+    const pinned = pinSetting(peekControl);
+    slideBy.current = pinned.slideBy;
+    return pinned.unpin;
   }, [peekControl]);
+  useLayoutEffect(() => {
+    if (peekControl) slideSetting(peekControl, leaving ? 0 : slideBy.current);
+  }, [peekControl, leaving]);
 
   // Without a control the panel is inert while aside, which drops focus; give it back to the control that had it.
   const focusBeforePeek = useRef<HTMLElement | null>(null);
@@ -747,18 +807,14 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
       focusBeforePeek.current = null;
     }
   }, [peek]);
-  const endPeek = () => {
-    clearTimeout(peekTimer.current);
-    setPeek(null);
-  };
   /** Steps aside; `source` (or the setting around it) stays on screen, and each new change restarts the wait. */
   const showPeek = (message: string, source?: Element | null) => {
     clearTimeout(peekTimer.current);
     const control = source?.closest<HTMLElement>('[data-setting]') ?? null;
     // Taken before the panel turns inert and drops the focus.
     if (!control) focusBeforePeek.current ??= document.activeElement as HTMLElement | null;
-    setPeek({ message, control });
-    peekTimer.current = setTimeout(() => setPeek(null), PEEK_MS);
+    setPeek({ message, control, leaving: false });
+    peekTimer.current = setTimeout(endPeek, PEEK_MS);
   };
 
   const selectTheme = (themeId: string) => {
@@ -860,7 +916,7 @@ function SettingsDialog({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-6">
+        <div data-settings-scroll className="flex-1 overflow-y-auto px-6 pb-6">
           <ConnectionProblem />
           {overriddenKeys.length > 0 && (
             <p className="mt-6 flex gap-2 rounded-md border border-accent/30 bg-accent/10 p-3 text-xs text-white/80">

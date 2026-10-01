@@ -41,7 +41,8 @@ body {
 
 /*
  * While a change shows on the overlay, only the setting being changed stays on
- * screen, in place and usable, like a TV's on-screen control. A visible
+ * screen, usable, like a TV's on-screen control (the settings panel slides it
+ * to the bottom of the screen). A visible
  * descendant of a hidden element still shows; the shadow frames it without
  * moving anything.
  */
@@ -56,8 +57,6 @@ body {
 
 [role='dialog'][data-peeking] [data-peek] {
   visibility: visible;
-  /* Room for the frame below when it is scrolled into view. */
-  scroll-margin: 16px;
   border-radius: 0.5rem;
   background-color: var(--bg-main);
   box-shadow:
