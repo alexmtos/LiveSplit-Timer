@@ -31,6 +31,10 @@ Para manter um pouco do fundo do tema, ajuste **Transparência do fundo**, que a
 
 Durante a run, o overlay redesenha o timer, os deltas e o gráfico 20 vezes por segundo. Se o OBS estiver pesado, escolha 10 em **Atualizações por segundo**, na seção **Exibição**, ou adicione `fps=10` à URL da fonte. Para um timer mais fluido, use 30 ou 60, que consomem mais CPU. Esconder seções que você não usa também reduz o consumo.
 
+Confira também se a aceleração de hardware das fontes de navegador está ativada: em **Configurações > Avançado > Fontes**, marque **Ativar aceleração de hardware da fonte do navegador** e reinicie o OBS. Sem ela, o OBS desenha a página na CPU, e cada atualização custa bem mais.
+
+> **Nota:** A maior parte do consumo vem de o navegador gerar uma imagem nova a cada atualização, qualquer que seja o tamanho da mudança. Por isso o número de atualizações por segundo pesa mais do que a quantidade de seções.
+
 ## Esconder a engrenagem na live
 
 Ative **Modo stream** nas configurações ou adicione `stream=1` à URL. A engrenagem fica invisível e só aparece quando o cursor passa sobre o timer (ou, sem o timer, sobre o canto dela). No OBS, isso acontece apenas na janela **Interagir**.
