@@ -9,6 +9,9 @@ const meta = (over: Partial<RunMetadata> = {}): RunMetadata => ({
   regionId: null,
   platformId: null,
   emulator: false,
+  regionName: null,
+  platformName: null,
+  variableNames: {},
   variables: {},
   ...over,
 });
@@ -25,6 +28,19 @@ describe('categoryExtras', () => {
   it('marks emulator runs, with or without a platform', () => {
     expect(categoryExtras(meta({ emulator: true }), { region: null, platform: 'N64' }, 'Emulador')).toEqual(['N64 Emulador']);
     expect(categoryExtras(meta({ emulator: true }), { region: null, platform: null }, 'Emulador')).toEqual(['Emulador']);
+  });
+});
+
+describe('categoryExtras with names from the component', () => {
+  it('prefers the splits file names over speedrun.com ids and lookups', () => {
+    const fromComponent = meta({
+      variables: {},
+      variableNames: { Glitches: 'Glitchless' },
+      regionName: 'NTSC',
+      platformName: 'Nintendo 64',
+      emulator: true,
+    });
+    expect(categoryExtras(fromComponent, { region: 'PAL', platform: 'Other' }, 'Emulator')).toEqual(['Glitchless', 'NTSC', 'Nintendo 64 Emulator']);
   });
 });
 

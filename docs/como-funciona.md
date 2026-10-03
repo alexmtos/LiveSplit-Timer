@@ -76,7 +76,7 @@ O tempo mostrado é o tempo principal do ranking, que pode ser Real Time, Game T
 
 Na linha da categoria, o cabeçalho acrescenta entre parênteses as informações adicionais da run, como o componente Title do LiveSplit: os valores das variáveis, a região e a plataforma, com "Emulador" quando a run usa um. Por exemplo, `Any% (Glitchless, NTSC, Nintendo 64)`. O texto que já estiver entre parênteses no nome da categoria entra na mesma lista.
 
-As informações vêm de *Edit Splits → Additional Info* no LiveSplit. O LiveSplit envia a região e a plataforma só como códigos do speedrun.com, então o app busca os nomes no site e os guarda no navegador. Sem acesso ao speedrun.com, a região e a plataforma ficam de fora.
+As informações vêm de *Edit Splits → Additional Info* no LiveSplit, e o componente 2.x envia os nomes como estão no arquivo de splits. Com o componente 1.x, que só envia os códigos do speedrun.com da região e da plataforma, o app busca os nomes no site e os guarda no navegador; sem acesso ao speedrun.com, essas duas ficam de fora.
 
 ## Formato dos tempos
 

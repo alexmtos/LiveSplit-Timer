@@ -2,18 +2,22 @@ import type { RunMetadata } from '@/types';
 
 /**
  * The extra details LiveSplit's Title component can add to the category
- * ("additional info"): the speedrun.com variable values, the region and the
- * platform, with "Emulator" when the run uses one. `names` are the region and
- * platform names, which LiveSplit only sends as speedrun.com IDs.
+ * ("additional info"): the variable values, the region and the platform, with
+ * "Emulator" when the run uses one. Component 2.x sends the names from the
+ * splits file; `fetched` are the region and platform names looked up on
+ * speedrun.com for older versions, which only send their IDs.
  */
 export function categoryExtras(
   meta: RunMetadata,
-  names: { region: string | null; platform: string | null },
+  fetched: { region: string | null; platform: string | null },
   emulatorLabel: string,
 ): string[] {
-  const extras = Object.values(meta.variables).filter((value) => value.trim() !== '');
-  if (names.region) extras.push(names.region);
-  if (names.platform) extras.push(meta.emulator ? `${names.platform} ${emulatorLabel}` : names.platform);
+  const values = Object.keys(meta.variableNames).length > 0 ? meta.variableNames : meta.variables;
+  const extras = Object.values(values).filter((value) => value.trim() !== '');
+  const region = meta.regionName ?? fetched.region;
+  const platform = meta.platformName ?? fetched.platform;
+  if (region) extras.push(region);
+  if (platform) extras.push(meta.emulator ? `${platform} ${emulatorLabel}` : platform);
   else if (meta.emulator) extras.push(emulatorLabel);
   return extras;
 }

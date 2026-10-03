@@ -30,6 +30,8 @@ const serverState = {
       platformId: 'w89rwelk',
       emulator: false,
       variables: { e8m7em86: 'N64', ignored: 3 },
+      platformName: 'Nintendo 64',
+      variableNames: { Version: 'N64', Empty: '' },
     },
   },
   timerState: 'Running',
@@ -52,6 +54,8 @@ describe('normalizeState', () => {
     expect(state.run.gameName).toBe('Super Mario 64');
     expect(state.run.categoryName).toBe('16 Star');
     expect(state.run.metadata.variables).toEqual({ e8m7em86: 'N64' });
+    // Names from the splits file (component 2.x); absent ones are null or empty.
+    expect(state.run.metadata).toMatchObject({ platformName: 'Nintendo 64', regionName: null, variableNames: { Version: 'N64' } });
     expect(state.run.segments[0].bestSegment.realTime).toBe(58_000);
   });
 

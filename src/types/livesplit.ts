@@ -34,8 +34,13 @@ export interface RunMetadata {
   regionId: string | null;
   platformId: string | null;
   emulator: boolean;
-  /** speedrun.com variable ID -> selected value label (as stored by LiveSplit). */
+  /** speedrun.com variable ID -> selected value label (as stored by LiveSplit); empty until LiveSplit has loaded speedrun.com data. */
   variables: Record<string, string>;
+  /** Names from the splits file, always sent by component 2.x (null or empty from older versions). */
+  regionName: string | null;
+  platformName: string | null;
+  /** Variable name -> selected value, as stored in the splits file. */
+  variableNames: Record<string, string>;
 }
 
 export interface Run {

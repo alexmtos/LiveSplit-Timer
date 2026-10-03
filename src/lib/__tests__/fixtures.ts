@@ -32,7 +32,7 @@ export function state(
       advancedSumOfBest: null,
       totalPlaytime: null,
       segments,
-      metadata: { gameId: null, categoryId: null, regionId: null, platformId: null, emulator: false, variables: {} },
+      metadata: { gameId: null, categoryId: null, regionId: null, platformId: null, emulator: false, variables: {}, regionName: null, platformName: null, variableNames: {} },
     },
     timerState: phase,
     currentComparison: 'Personal Best',

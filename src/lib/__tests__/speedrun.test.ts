@@ -8,6 +8,9 @@ const meta = (variables: Record<string, string> = {}): RunMetadata => ({
   regionId: null,
   platformId: null,
   emulator: false,
+  regionName: null,
+  platformName: null,
+  variableNames: {},
   variables,
 });
 

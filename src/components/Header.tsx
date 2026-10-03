@@ -20,8 +20,9 @@ export function Header() {
   const run = state?.run;
   const lastSegment = run?.segments[run.segments.length - 1];
   const pb = pickTime(lastSegment?.personalBest, timingMethod);
-  const region = useSpeedrunName('regions', run?.metadata.regionId ?? null);
-  const platform = useSpeedrunName('platforms', run?.metadata.platformId ?? null);
+  // Only looked up on speedrun.com when the component doesn't send the names (versions before 2.0).
+  const region = useSpeedrunName('regions', run?.metadata.regionName ? null : (run?.metadata.regionId ?? null));
+  const platform = useSpeedrunName('platforms', run?.metadata.platformName ? null : (run?.metadata.platformId ?? null));
   // The category with LiveSplit's additional info (variables, region, platform), e.g. "Any% (Glitchless, NTSC, N64)".
   const category = run?.categoryName
     ? extendedCategoryName(run.categoryName, categoryExtras(run.metadata, { region, platform }, t('category_emulator')))

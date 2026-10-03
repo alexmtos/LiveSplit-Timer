@@ -37,21 +37,29 @@ function toSegment(value: unknown): Segment | null {
   };
 }
 
-function toMetadata(value: unknown): RunMetadata {
-  const meta = isObject(value) ? value : {};
-  const variables: Record<string, string> = {};
-  if (isObject(meta.variables)) {
-    for (const [id, label] of Object.entries(meta.variables)) {
-      if (typeof label === 'string' && label !== '') variables[id] = label;
+/** The non-empty string values of an object. */
+function toLabels(value: unknown): Record<string, string> {
+  const labels: Record<string, string> = {};
+  if (isObject(value)) {
+    for (const [key, label] of Object.entries(value)) {
+      if (typeof label === 'string' && label !== '') labels[key] = label;
     }
   }
+  return labels;
+}
+
+function toMetadata(value: unknown): RunMetadata {
+  const meta = isObject(value) ? value : {};
   return {
     gameId: toText(meta.gameId),
     categoryId: toText(meta.categoryId),
     regionId: toText(meta.regionId),
     platformId: toText(meta.platformId),
     emulator: meta.emulator === true,
-    variables,
+    variables: toLabels(meta.variables),
+    regionName: toText(meta.regionName),
+    platformName: toText(meta.platformName),
+    variableNames: toLabels(meta.variableNames),
   };
 }
 
