@@ -72,6 +72,12 @@ Quando o arquivo de splits está associado a um jogo e categoria do speedrun.com
 
 O tempo mostrado é o tempo principal do ranking, que pode ser Real Time, Game Time ou Real Time sem loads, conforme as regras da categoria.
 
+## Informações adicionais da categoria
+
+Na linha da categoria, o cabeçalho acrescenta entre parênteses as informações adicionais da run, como o componente Title do LiveSplit: os valores das variáveis, a região e a plataforma, com "Emulador" quando a run usa um. Por exemplo, `Any% (Glitchless, NTSC, Nintendo 64)`. O texto que já estiver entre parênteses no nome da categoria entra na mesma lista.
+
+As informações vêm de *Edit Splits → Additional Info* no LiveSplit. O LiveSplit envia a região e a plataforma só como códigos do speedrun.com, então o app busca os nomes no site e os guarda no navegador. Sem acesso ao speedrun.com, a região e a plataforma ficam de fora.
+
 ## Formato dos tempos
 
 - Os tempos são truncados, nunca arredondados para cima, como no LiveSplit.

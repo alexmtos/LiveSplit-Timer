@@ -30,8 +30,8 @@ export const DEFAULT_SETTINGS: Settings = {
   },
   transparency: 100,
   refreshRate: DEFAULT_REFRESH_RATE,
-  gameIconSize: 24,
-  splitIconSize: 20,
+  gameIconSize: 44,
+  splitIconSize: 32,
 };
 
 function toRefreshRate(value: unknown): number | null {

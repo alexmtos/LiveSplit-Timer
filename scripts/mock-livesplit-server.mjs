@@ -38,7 +38,8 @@ const legacy = args.includes('--legacy');
 const broken = args.includes('--broken');
 const speedrunMetadata = args.includes('--src')
   ? { gameId: 'o1y9wo6q', categoryId: 'n2y1y72o', regionId: null, platformId: null, emulator: false, variables: { e8m7em86: 'N64' } }
-  : { gameId: null, categoryId: null, regionId: null, platformId: null, emulator: false, variables: {} };
+  : // Not linked to speedrun.com (no world record lookup), but with additional info for the header: "Any% (Glitchless, Emulator)".
+    { gameId: null, categoryId: null, regionId: null, platformId: null, emulator: true, variables: { mockvar: 'Glitchless' } };
 
 // 1x1 PNGs, enough to check that icons reach the overlay.
 const ICON_RED = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';

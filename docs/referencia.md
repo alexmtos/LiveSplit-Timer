@@ -63,7 +63,7 @@ As cores ficam salvas. A URL para o OBS leva o parâmetro `colors`, para a fonte
 
 | Opção | Padrão | Descrição |
 |-------|--------|-----------|
-| Mostrar cabeçalho | Ligado | Jogo, categoria, PB e recorde mundial. Se o jogo e a categoria não cabem lado a lado, a categoria passa para a linha de baixo. |
+| Mostrar cabeçalho | Ligado | Jogo, categoria, PB e recorde mundial. A categoria fica na linha de baixo do jogo, com as [informações adicionais](como-funciona.md#informações-adicionais-da-categoria) da run. |
 | Mostrar timer | Ligado | Timer principal e delta atual. |
 | Mostrar previsões | Ligado | Tempo ideal e previsão atual. |
 | Mostrar gráfico de comparação | Ligado | Gráfico do delta ao longo da run. |
@@ -71,8 +71,8 @@ As cores ficam salvas. A URL para o OBS leva o parâmetro `colors`, para a fonte
 | Mostrar tabela de splits | Ligado | Lista de splits, agrupada por seção. |
 | Splits sempre expandidos | Desligado | Mostra os subsplits de todas as seções. Desligado, só a seção atual e as que você abrir ficam expandidas. |
 | Atalhos de teclado | Ligado | Ativa os [atalhos de teclado](#atalhos-de-teclado) da página. |
-| Tamanho da imagem do jogo | 24 px | Maior largura ou altura da imagem do jogo no cabeçalho, de 16 a 128 px. A imagem cresce ou diminui, mantendo a proporção, até o primeiro lado atingir esse tamanho. |
-| Tamanho dos ícones dos splits | 20 px | O mesmo para as imagens dos splits na tabela, como retratos de personagens, de 16 a 64 px. A coluna e as linhas se ajustam ao tamanho. |
+| Tamanho da imagem do jogo | 44 px | Maior largura ou altura da imagem do jogo no cabeçalho, de 16 a 128 px. A imagem cresce ou diminui, mantendo a proporção, até o primeiro lado atingir esse tamanho. |
+| Tamanho dos ícones dos splits | 32 px | O mesmo para as imagens dos splits na tabela, como retratos de personagens, de 16 a 64 px. A coluna e as linhas se ajustam ao tamanho. |
 | Atualizações por segundo | 60 | Quantas vezes por segundo o timer, os deltas, as previsões e o gráfico são redesenhados durante a run: 10, 20, 30 ou 60. O consumo de CPU acompanha esse número; o tempo continua exato em qualquer opção. |
 | Modo stream | Desligado | Esconde a engrenagem até o cursor passar sobre ela. No cabeçalho, no timer e nas previsões, basta passar sobre a seção, e a engrenagem escondida não ocupa espaço. Nos controles, ela mantém o espaço, para os botões não mudarem de lugar sob o cursor. |
 

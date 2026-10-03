@@ -132,6 +132,36 @@ export async function fetchWorldRecord(
   return parseLeaderboard(leaderboard);
 }
 
+const NAMES_KEY = 'livesplit-src-names';
+
+/** Name of a speedrun.com platform or region, cached for good (names don't change); null when unknown. */
+export async function fetchSpeedrunName(
+  kind: 'platforms' | 'regions',
+  id: string,
+  { signal, fetchImpl = fetch }: { signal?: AbortSignal; fetchImpl?: typeof fetch } = {},
+): Promise<string | null> {
+  const key = `${kind}/${id}`;
+  let cache: Record<string, string> = {};
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(NAMES_KEY) ?? '{}');
+    if (isObject(parsed)) cache = parsed as Record<string, string>;
+  } catch {
+    // Storage unavailable: ask speedrun.com every time.
+  }
+  if (typeof cache[key] === 'string') return cache[key];
+  const response = await getJson(`${API}/${kind}/${encodeURIComponent(id)}`, fetchImpl, signal);
+  const data = isObject(response) && isObject(response.data) ? response.data : null;
+  const name = data && typeof data.name === 'string' && data.name !== '' ? data.name : null;
+  if (name) {
+    try {
+      localStorage.setItem(NAMES_KEY, JSON.stringify({ ...cache, [key]: name }));
+    } catch {
+      // Not cached; fetched again next time.
+    }
+  }
+  return name;
+}
+
 interface CacheEntry {
   savedAt: number;
   record: WorldRecord | null;

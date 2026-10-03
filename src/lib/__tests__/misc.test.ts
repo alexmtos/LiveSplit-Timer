@@ -154,7 +154,7 @@ describe('URL overrides', () => {
     const url = buildOverlayUrl('http://x', '/splits', settings);
     expect(url).toBe('http://x/splits?lang=pt-BR&gameicon=48&spliticon=30');
     expect({ ...DEFAULT_SETTINGS, ...parseUrlOverrides(new URL(url).search, DEFAULT_SETTINGS.wsUrl) }).toEqual(settings);
-    expect(sanitizeSettings({ gameIconSize: 40.4, splitIconSize: 'big' })).toMatchObject({ gameIconSize: 40, splitIconSize: 20 });
+    expect(sanitizeSettings({ gameIconSize: 40.4, splitIconSize: 'big' })).toMatchObject({ gameIconSize: 40, splitIconSize: 32 });
   });
 
   it('reads the section order, completing it with the default order', () => {
